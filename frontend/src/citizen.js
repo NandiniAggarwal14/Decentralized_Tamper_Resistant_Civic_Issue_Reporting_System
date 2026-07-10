@@ -98,6 +98,22 @@ function renderIssues(issues) {
     // Verify translations
     const verifBtnText = window.i18n ? window.i18n.t('verify_integrity', 'Verify Integrity') : 'Verify Integrity';
 
+    // Resolution Proof & Contextual Voting Prompt
+    let proofHTML = '';
+    if (issue.status === 'resolved' && issue.completion_proof_url) {
+      const proofLabelText = window.i18n ? window.i18n.t('resolution_proof_label', 'Resolution Proof') : 'Resolution Proof';
+      proofHTML = `
+        <div class="resolution-proof-container">
+          <div style="font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 4px;">${proofLabelText}</div>
+          <img src="${issue.completion_proof_url}" class="resolution-proof-inline" onclick="window.open('${issue.completion_proof_url}', '_blank')" alt="Resolution Proof">
+        </div>
+      `;
+    }
+
+    const votePromptKey = issue.status === 'resolved' ? 'vote_satisfaction_prompt' : 'vote_support_prompt';
+    const defaultPromptText = issue.status === 'resolved' ? 'Are you satisfied with the resolution?' : 'Do you also face this issue? Show your support.';
+    const votePromptText = window.i18n ? window.i18n.t(votePromptKey, defaultPromptText) : defaultPromptText;
+
     return `
       <div class="issue-card ${issue.status}">
         <div class="issue-header">
@@ -128,14 +144,21 @@ function renderIssues(issues) {
         </div>
 
         <!-- Actions footer -->
-        <div class="issue-footer">
-          <button onclick="trackStatus('${issue.id}', '${issue.created_at}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Track Status</button>
+        <div class="issue-footer" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <button onclick="trackStatus('${issue.id}', '${issue.created_at}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Track Status</button>
+          </div>
           
-          <!-- Upvote Widget -->
-          <div class="vote-widget">
-            <button onclick="castVote('${issue.id}', 'up')" class="vote-btn up ${issue.votes.user_vote === 'up' ? 'active' : ''}">▲</button>
-            <span class="vote-number" style="color: ${issue.votes.score >= 0 ? 'var(--success)' : 'var(--danger)'}">${issue.votes.score}</span>
-            <button onclick="castVote('${issue.id}', 'down')" class="vote-btn down ${issue.votes.user_vote === 'down' ? 'active' : ''}">▼</button>
+          <div class="vote-section">
+            ${proofHTML}
+            <div class="vote-row">
+              <div class="vote-widget">
+                <button onclick="castVote('${issue.id}', 'up')" class="vote-btn up ${issue.votes.user_vote === 'up' ? 'active' : ''}">▲</button>
+                <span class="vote-number" style="color: ${issue.votes.score >= 0 ? 'var(--success)' : 'var(--danger)'}">${issue.votes.score}</span>
+                <button onclick="castVote('${issue.id}', 'down')" class="vote-btn down ${issue.votes.user_vote === 'down' ? 'active' : ''}">▼</button>
+              </div>
+              <span class="vote-context">${votePromptText}</span>
+            </div>
           </div>
         </div>
       </div>

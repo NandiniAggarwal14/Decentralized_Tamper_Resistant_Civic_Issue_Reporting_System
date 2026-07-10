@@ -236,6 +236,7 @@ def _serialize_issue(row: dict) -> dict:
         "ipfs_cid": row.get("ipfs_cid"),
         "completion_proof_ipfs_cid": row.get("completion_proof_ipfs_cid"),
         "completion_hash": row.get("completion_hash"),
+        "completion_proof_url": row.get("completion_proof_url"),
         "votes": {
             "upvotes": upvotes,
             "downvotes": downvotes,

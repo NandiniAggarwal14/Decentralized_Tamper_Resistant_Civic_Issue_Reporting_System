@@ -95,6 +95,9 @@
   "pending_approval_title": "Account Pending Approval",
   "pending_approval_desc": "Your account is pending administrator approval. You will gain access once approved.",
   "rate_limit_error": "Too many requests. Please try again later.",
-  "system_stats": "System Statistics"
+  "system_stats": "System Statistics",
+  "vote_support_prompt": "Do you also face this issue? Show your support.",
+  "vote_satisfaction_prompt": "Are you satisfied with the resolution?",
+  "resolution_proof_label": "Resolution Proof"
 }
 

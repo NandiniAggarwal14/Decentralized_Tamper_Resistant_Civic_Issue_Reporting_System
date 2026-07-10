@@ -176,6 +176,7 @@ async def get_authority_issues(current_user: UserResponse = Depends(RoleChecker(
                            i.priority, i.ward_id, w.name as ward_name,
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
+                           i.completion_proof_url,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     LEFT JOIN wards w ON i.ward_id = w.id
@@ -326,15 +327,25 @@ async def resolve_issue(
 
         with get_connection() as conn:
             with conn.cursor() as cursor:
+                # 1. Clear all existing votes for this issue
+                cursor.execute(
+                    "DELETE FROM issue_votes WHERE issue_id = %s",
+                    (issue_id,)
+                )
+
+                # 2. Update issue status, proof url, and reset upvote/downvote counts
                 cursor.execute(
                     """
                     UPDATE issues
                     SET status = 'resolved',
                         completion_proof_ipfs_cid = %s,
-                        completion_hash = %s
+                        completion_hash = %s,
+                        completion_proof_url = %s,
+                        upvote_count = 0,
+                        downvote_count = 0
                     WHERE id = %s
                     """,
-                    (completion_proof_ipfs_cid, completion_hash, issue_id)
+                    (completion_proof_ipfs_cid, completion_hash, proof_url, issue_id)
                 )
 
                 cursor.execute(

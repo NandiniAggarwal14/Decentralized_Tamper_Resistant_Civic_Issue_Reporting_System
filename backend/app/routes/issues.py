@@ -42,6 +42,7 @@ async def get_issues(
                            i.priority, i.ward_id, w.name as ward_name,
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
+                           i.completion_proof_url,
                            i.upvote_count, i.downvote_count,
                            uv.vote_type AS user_vote
                      FROM issues i
@@ -238,6 +239,7 @@ async def create_issue(
                            i.priority, i.ward_id, w.name as ward_name,
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
+                           i.completion_proof_url,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     LEFT JOIN wards w ON i.ward_id = w.id

@@ -108,7 +108,8 @@ ALTER TABLE issues
     ADD COLUMN IF NOT EXISTS ipfs_cid TEXT,
     ADD COLUMN IF NOT EXISTS media_urls JSONB DEFAULT '[]'::JSONB,
     ADD COLUMN IF NOT EXISTS completion_proof_ipfs_cid TEXT,
-    ADD COLUMN IF NOT EXISTS completion_hash TEXT;
+    ADD COLUMN IF NOT EXISTS completion_hash TEXT,
+    ADD COLUMN IF NOT EXISTS completion_proof_url TEXT;
 
 -- ---------------------------------------------------------------------------
 -- 6. Status change audit trail

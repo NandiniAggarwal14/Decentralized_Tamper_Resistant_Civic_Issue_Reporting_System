@@ -167,6 +167,7 @@ async def get_ward_issues(current_user: UserResponse = Depends(RoleChecker(["war
                            i.priority, i.ward_id, w.name as ward_name,
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
+                           i.completion_proof_url,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     JOIN wards w ON i.ward_id = w.id

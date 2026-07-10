@@ -702,6 +702,57 @@ textarea {
   padding: 0 10px;
 }
 
+.vote-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.vote-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vote-context {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  flex: 1;
+  min-width: 180px;
+}
+
+.resolution-proof-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.03);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 4px;
+}
+
+.resolution-proof-inline {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.resolution-proof-inline:hover {
+  transform: scale(1.05);
+  border-color: var(--success);
+}
+
 /* --- Terminal Audit Box --- */
 .audit-box {
   margin-top: 14px;
