@@ -12,10 +12,9 @@
     <!-- LEFT SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon">CP</div>
         <div class="brand-text">
           <h1 data-i18n="title">Decentralized Portal</h1>
-          <p data-i18n="subtitle">Citizen Console</p>
+          <p data-i18n="citizen_console">Citizen Console</p>
         </div>
       </div>
 
@@ -73,6 +72,17 @@
       </div>
     </main>
 
+  </div>
+
+  <!-- Status Trail Modal -->
+  <div class="modal-overlay" id="trail-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="card" style="max-width: 500px; width: 90%; max-height: 80%; overflow-y: auto; padding: 24px; position: relative; border: 1px solid var(--border);">
+      <span onclick="closeTrailModal()" style="position: absolute; top: 16px; right: 16px; cursor: pointer; font-size: 1.5rem; color: var(--text-muted);">&times;</span>
+      <h3 style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">📋 Issue Resolution Status Trail</h3>
+      <div id="trail-stepper" class="stepper-container">
+        <!-- Stepper content will be dynamically generated -->
+      </div>
+    </div>
   </div>
 
   <script src="/assets/i18n.js"></script>

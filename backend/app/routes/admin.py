@@ -195,6 +195,120 @@ async def reject_user(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# ---- Simplified blockchain activity feed (NEW) ----
+@router.get("/blockchain/activity")
+async def get_blockchain_activity(
+    current_user: UserResponse = Depends(RoleChecker(["admin"]))
+) -> dict:
+    """Returns a simplified, chronological list of all blockchain operations:
+    issues anchored, status changes anchored, resolution completions, and any sync errors.
+    """
+    from datetime import datetime
+    try:
+        activity = []
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                # 1. Fetch issue anchoring operations from issues table
+                cursor.execute(
+                    """
+                    SELECT id, title, created_at, hash, ipfs_cid, completion_hash
+                    FROM issues
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                    """
+                )
+                issue_rows = cursor.fetchall()
+                for r in issue_rows:
+                    activity.append({
+                        "id": str(r["id"]),
+                        "timestamp": r["created_at"].isoformat() if r["created_at"] else None,
+                        "type": "Complaint Anchored",
+                        "summary": f"Complaint '{r['title'][:40]}...' registered on blockchain.",
+                        "status": "Success" if r["hash"] else "Pending",
+                        "hash": r["hash"] or "Pending mempool confirmation",
+                        "ipfs_cid": r["ipfs_cid"],
+                        "raw_timestamp": r["created_at"]
+                    })
+                    
+                    if r["completion_hash"]:
+                        activity.append({
+                            "id": str(r["id"]),
+                            "timestamp": r["created_at"].isoformat(),
+                            "type": "Resolution Anchored",
+                            "summary": f"Resolution proof for complaint '{r['title'][:40]}...' anchored.",
+                            "status": "Success",
+                            "hash": r["completion_hash"],
+                            "ipfs_cid": None,
+                            "raw_timestamp": r["created_at"]
+                        })
+
+                # 2. Fetch status changes from issue_status_history
+                cursor.execute(
+                    """
+                    SELECT h.id, h.old_status, h.new_status, h.comments, h.created_at, h.blockchain_hash, h.ipfs_cid,
+                           i.title as issue_title
+                    FROM issue_status_history h
+                    JOIN issues i ON h.issue_id = i.id
+                    ORDER BY h.created_at DESC
+                    LIMIT 50
+                    """
+                )
+                history_rows = cursor.fetchall()
+                for r in history_rows:
+                    if r["new_status"] == "pending" and r["comments"] and "Routed to" in r["comments"]:
+                        action = "Redirection Anchored"
+                        desc = f"Routing trail of '{r['issue_title'][:30]}...' to department recorded."
+                    else:
+                        action = f"Status Changed to {r['new_status'].replace('_', ' ').capitalize()}"
+                        desc = f"Status update for '{r['issue_title'][:30]}...' anchored on-chain."
+                    
+                    activity.append({
+                        "id": str(r["id"]),
+                        "timestamp": r["created_at"].isoformat() if r["created_at"] else None,
+                        "type": action,
+                        "summary": desc,
+                        "status": "Success" if r["blockchain_hash"] else "Pending",
+                        "hash": r["blockchain_hash"] or "Pending mempool confirmation",
+                        "ipfs_cid": r["ipfs_cid"],
+                        "raw_timestamp": r["created_at"]
+                    })
+
+                # 3. Fetch failed transactions
+                cursor.execute(
+                    """
+                    SELECT id, function_name, error_message, retry_count, created_at, resolved_at
+                    FROM failed_blockchain_txns
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                    """
+                )
+                failed_rows = cursor.fetchall()
+                for r in failed_rows:
+                    status_lbl = "Resolved" if r["resolved_at"] else "Sync Error (Retrying)"
+                    activity.append({
+                        "id": f"ERR-{r['id']}",
+                        "timestamp": r["created_at"].isoformat() if r["created_at"] else None,
+                        "type": "Blockchain Sync Alert",
+                        "summary": f"Failed operation: '{r['function_name']}'. Error: {r['error_message'][:80]}...",
+                        "status": status_lbl,
+                        "hash": f"Retry Count: {r['retry_count']}",
+                        "ipfs_cid": None,
+                        "raw_timestamp": r["created_at"]
+                    })
+
+        # Sort combined activity list chronologically (newest first)
+        activity.sort(key=lambda x: x["raw_timestamp"] if x["raw_timestamp"] else datetime.min, reverse=True)
+        
+        # Clean raw timestamp objects before returning json
+        for act in activity:
+            act.pop("raw_timestamp", None)
+            
+        return {"success": True, "count": len(activity), "data": activity[:60]}
+    except Exception as exc:
+        logging.exception("Failed to build blockchain activity log")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 # ---- Failed blockchain transactions ----
 @router.get("/failed-transactions")
 async def get_failed_transactions(

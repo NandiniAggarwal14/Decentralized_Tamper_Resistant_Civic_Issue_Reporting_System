@@ -1,6 +1,10 @@
 {
-  "title": "Decentralized Tamper-Resistant Civic Issue Reporting System",
-  "subtitle": "Decentralized civic issue platform secured by Ethereum Sepolia & IPFS",
+  "title": "Decentralized Civic Issue Reporting System",
+  "subtitle": "",
+  "citizen_console": "Citizen Console",
+  "admin_console": "Admin Console",
+  "ward_console": "Ward Console",
+  "authority_console": "Authority Console",
   "login": "Login",
   "register": "Register",
   "username": "Username",

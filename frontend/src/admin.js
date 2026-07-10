@@ -31,7 +31,7 @@ function switchTab(tabId) {
   if (tabId === 'tab-departments') loadAdminDepartments();
   if (tabId === 'tab-users') loadAllUsers();
   if (tabId === 'tab-approvals') loadPendingUsers();
-  if (tabId === 'tab-blockchain') loadFailedTransactions();
+  if (tabId === 'tab-blockchain') loadBlockchainActivity();
 }
 
 // ============================================================
@@ -55,7 +55,7 @@ async function refreshDashboard() {
   await Promise.all([
     loadStats(),
     loadPendingUsers(),
-    loadFailedTransactions(),
+    loadBlockchainActivity(),
     loadAdminWards(),
     loadAdminDepartments(),
     loadAllUsers(),
@@ -545,41 +545,64 @@ async function rejectUser(userId, name) {
 }
 
 // ============================================================
-// FAILED BLOCKCHAIN TRANSACTIONS
+// BLOCKCHAIN ACTIVITY FEED
 // ============================================================
-async function loadFailedTransactions() {
-  const tbody = document.getElementById('transactions-tbody');
-  if (!tbody) return;
+async function loadBlockchainActivity() {
+  const feed = document.getElementById('blockchain-activity-feed');
+  if (!feed) return;
   try {
-    const res = await fetch('/api/admin/failed-transactions', {
+    const res = await fetch('/api/admin/blockchain/activity', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
 
     if (res.ok && data.success) {
-      const txns = data.data;
-      if (txns.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:32px;">No failed blockchain transactions. All entries synced!</td></tr>`;
+      const items = data.data;
+      if (items.length === 0) {
+        feed.innerHTML = `<p style="text-align:center;color:var(--text-secondary);padding:32px;">No blockchain operations recorded yet.</p>`;
         return;
       }
-      tbody.innerHTML = txns.map(tx => {
-        const dateStr = tx.created_at ? new Date(tx.created_at).toLocaleString() : 'N/A';
+      feed.innerHTML = items.map(item => {
+        const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A';
+
+        // Status color and icon
+        let statusColor = 'var(--text-secondary)';
+        let statusIcon = '⏳';
+        if (item.status === 'Success') { statusColor = 'var(--success)'; statusIcon = '✅'; }
+        else if (item.status === 'Resolved') { statusColor = 'var(--success)'; statusIcon = '✅'; }
+        else if (item.status.includes('Error')) { statusColor = 'var(--danger)'; statusIcon = '❌'; }
+        else if (item.status === 'Pending') { statusColor = 'var(--warning)'; statusIcon = '⏳'; }
+
+        // Event type icon
+        let typeIcon = '📄';
+        if (item.type.includes('Complaint')) typeIcon = '📝';
+        else if (item.type.includes('Resolution')) typeIcon = '🏁';
+        else if (item.type.includes('Redirection')) typeIcon = '🔄';
+        else if (item.type.includes('Status')) typeIcon = '⚙️';
+        else if (item.type.includes('Alert')) typeIcon = '⚠️';
+
         return `
-          <tr style="${tx.resolved_at ? 'opacity:0.5;' : ''}">
-            <td style="font-family:monospace;font-size:0.8rem;">TX-${tx.id}</td>
-            <td style="font-weight:600;color:var(--primary);font-family:monospace;">${escapeHtml(tx.function_name)}</td>
-            <td style="max-width:250px;font-family:monospace;font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(tx.args_json)}">${escapeHtml(tx.args_json)}</td>
-            <td style="text-align:center;">${tx.retry_count}</td>
-            <td style="max-width:200px;color:var(--danger);font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(tx.error_message)}">${escapeHtml(tx.error_message || 'Unknown error')}</td>
-            <td style="font-size:0.8rem;color:var(--text-muted);">${dateStr}</td>
-          </tr>
+          <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--radius-sm);transition:background 0.2s;">
+            <div style="font-size:1.4rem;line-height:1;margin-top:2px;">${typeIcon}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+                <span style="font-weight:600;font-size:0.9rem;color:#fff;">${escapeHtml(item.type)}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;">${dateStr}</span>
+              </div>
+              <p style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 8px 0;">${escapeHtml(item.summary)}</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span style="font-family:monospace;font-size:0.7rem;color:var(--text-muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(item.hash)}">${escapeHtml(item.hash)}</span>
+                <span style="font-size:0.75rem;font-weight:600;color:${statusColor};">${statusIcon} ${escapeHtml(item.status)}</span>
+              </div>
+            </div>
+          </div>
         `;
       }).join('');
     } else {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:16px;">Failed: ${data.detail || 'Access denied'}</td></tr>`;
+      feed.innerHTML = `<p style="text-align:center;color:var(--danger);padding:16px;">Failed to load activity: ${data.detail || 'Access denied'}</p>`;
     }
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:16px;">Server connection failure.</td></tr>`;
+    if (feed) feed.innerHTML = `<p style="text-align:center;color:var(--danger);padding:16px;">Server connection failure.</p>`;
   }
 }
 
@@ -594,7 +617,7 @@ async function retryFailedTransactions() {
     const data = await res.json();
     if (res.ok && data.success) {
       showAlert(data.message || 'Blockchain ledger sync retries completed.');
-      await loadFailedTransactions();
+      await loadBlockchainActivity();
     } else {
       showAlert(data.detail || 'Failed to trigger blockchain retries.', true);
     }
@@ -602,7 +625,7 @@ async function retryFailedTransactions() {
     showAlert('Connection error while retrying failed transactions.', true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Retry All Transactions';
+    btn.textContent = 'Retry Sync Failures';
   }
 }
 

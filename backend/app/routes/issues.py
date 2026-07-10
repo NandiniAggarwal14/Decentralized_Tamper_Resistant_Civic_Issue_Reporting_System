@@ -217,6 +217,15 @@ async def create_issue(
                     ),
                 )
                 cursor.fetchone()
+
+                # Log initial status history step
+                cursor.execute(
+                    """
+                    INSERT INTO issue_status_history (id, issue_id, old_status, new_status, changed_by, comments, created_at)
+                    VALUES (%s, %s, NULL, 'pending', %s, 'Complaint registered by citizen.', %s)
+                    """,
+                    (str(uuid.uuid4()), issue_id, current_user.id, created_at)
+                )
             conn.commit()
 
         with get_connection() as conn:
@@ -546,3 +555,44 @@ async def vote_issue(
     except Exception as exc:
         logging.exception("Failed to record vote")
         raise HTTPException(status_code=500, detail="Failed to record vote due to a database/server error.") from exc
+
+
+@router.get("/issues/{issue_id}/status-history")
+async def get_issue_status_history(issue_id: str) -> dict:
+    """Returns the full chronological status trail for a given issue."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT h.id, h.old_status, h.new_status, h.comments, h.proof_url,
+                           h.ipfs_cid, h.blockchain_hash, h.created_at,
+                           u.full_name as changed_by_name, u.role as changed_by_role
+                    FROM issue_status_history h
+                    LEFT JOIN users u ON h.changed_by = u.id
+                    WHERE h.issue_id = %s
+                    ORDER BY h.created_at ASC
+                    """,
+                    (issue_id,)
+                )
+                rows = cursor.fetchall()
+
+        history = []
+        for r in rows:
+            history.append({
+                "id": str(r["id"]),
+                "old_status": r["old_status"],
+                "new_status": r["new_status"],
+                "comments": r["comments"],
+                "proof_url": r["proof_url"],
+                "ipfs_cid": r["ipfs_cid"],
+                "blockchain_hash": r["blockchain_hash"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                "changed_by_name": r["changed_by_name"],
+                "changed_by_role": r["changed_by_role"],
+            })
+        return {"success": True, "count": len(history), "history": history}
+    except Exception as exc:
+        logging.exception("Failed to fetch issue status history")
+        raise HTTPException(status_code=500, detail="Internal server error")
+

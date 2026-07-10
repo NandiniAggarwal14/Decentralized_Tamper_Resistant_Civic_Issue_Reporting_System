@@ -12,10 +12,9 @@
     <!-- LEFT SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon">CP</div>
         <div class="brand-text">
           <h1 data-i18n="title">Decentralized Portal</h1>
-          <p data-i18n="subtitle">Citizen Console</p>
+          <p data-i18n="citizen_console">Citizen Console</p>
         </div>
       </div>
 
@@ -160,11 +159,11 @@
             <div class="form-row" style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px;">
               <div class="form-group">
                 <label for="complaint-reporter" data-i18n="reporter_name">Reporter Name</label>
-                <input type="text" id="complaint-reporter" required>
+                <input type="text" id="complaint-reporter" required readonly style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); cursor: not-allowed;">
               </div>
               <div class="form-group">
                 <label for="complaint-contact" data-i18n="contact">Contact Info</label>
-                <input type="text" id="complaint-contact">
+                <input type="text" id="complaint-contact" readonly style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); cursor: not-allowed;">
               </div>
             </div>
 

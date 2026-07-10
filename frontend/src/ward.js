@@ -32,8 +32,7 @@ async function initializeWard() {
     await loadDepartments();
     await loadWardIssues();
     
-    // Load Profile & Stats in background
-    await loadProfile();
+    // Load Stats in background
     await loadStats();
   }
 }

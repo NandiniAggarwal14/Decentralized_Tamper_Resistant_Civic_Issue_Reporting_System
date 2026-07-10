@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from backend.app.database import get_connection
@@ -16,8 +15,6 @@ SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-in-prod-civic-repo
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")) # 24 hours default
 
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 class UserResponse(BaseModel):
@@ -30,17 +27,16 @@ class UserResponse(BaseModel):
     department_name: Optional[str] = None
     is_approved: bool = True
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against its bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain_password: str, stored_password: str) -> bool:
+    """Verify a plain password against the stored password (plaintext comparison)."""
+    return plain_password == stored_password
 
 def get_password_hash(password: str) -> str:
-    """Hash a plain password using bcrypt. Safe to call on any machine —
-    bcrypt embeds the salt in the hash, so verify() always works correctly
-    regardless of which machine produced the hash, as long as bcrypt==3.2.2
-    is pinned in requirements.txt.
+    """Return the password as-is (no hashing).
+    Kept as an identity function so all call-sites (register, seed, reset)
+    continue to work without modification.
     """
-    return pwd_context.hash(password)
+    return password
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

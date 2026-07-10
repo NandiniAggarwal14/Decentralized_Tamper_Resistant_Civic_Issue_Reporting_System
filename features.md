@@ -1,5 +1,5 @@
 # 📊 Technical Specifications, Methodology, and Research Gap Analysis
-## Project: Decentralized Tamper-Resistant Civic Issue Reporting System
+## Project: Decentralized Civic Issue Reporting System
 
 This document provides a highly detailed, academically structured breakdown of the system architecture, mathematical methodologies, security frameworks, and research gap analyses. It is designed to serve as a direct reference for writing the **Methodology**, **Research Gaps**, **System Design**, and **Conclusion** sections of an academic journal or research paper.
 
@@ -23,6 +23,7 @@ This project implements a **Hybrid Decentralized Architecture**:
 |  3. Relational DB stores record (Neon PostgreSQL)                                 |
 |  4. SHA-256 hash anchored to Ethereum Sepolia via CivicRegistry Smart Contract    |
 |  5. Verification reads DB hash vs On-chain hash to assert zero database tampering |
+|  6. Chronological status milestones are tracked on-chain & displayed as a stepper |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -145,10 +146,13 @@ This architecture explicitly addresses several key research gaps identified in c
 
 | Research Gap | Centralized Systems | Early DApp Architectures | This Implementation |
 |---|---|---|---|
-| **Administrative Tampering** | Database administrators or corrupt officials can alter or delete sensitive reports to hide negligence. | None. Secure on-chain registry is present but unusable due to high gas fees and slow execution times. | **Hybrid Registry**: RELATIONAL performance + Blockchain anchoring. Discrepancies are flagged instantly on client-side. |
+| **Administrative Tampering** | Database administrators or corrupt officials can alter or delete sensitive reports to hide negligence. | Secure on-chain registry is present but unusable due to high gas fees and slow execution times. | **Hybrid Registry**: RELATIONAL performance + Blockchain anchoring. Discrepancies are flagged instantly on client-side. |
 | **Gerrymandering & Routing Bias** | Manual assignment allows administrators to slow-walk issues routed to political opponents. | Manual entry of ward jurisdictions leads to user error and classification bottlenecks. | **Deterministic Haversine Routing**: Automatic, GPS-bound, math-proven auto-routing with no human override option. |
-| **Artifical Severity Manipulation** | Officials manually adjust priority badges (Critical to Low) to meet SLA metrics artifically. | Static severity parameters set at submission do not adapt to community needs over time. | **Upvote percentiles**: Priority badge is a mathematical function of crowd-sourced upvotes. Fully dynamic. |
+| **Severity Manipulation** | Officials manually adjust priority badges (Critical to Low) to meet SLA metrics artificially. | Static severity parameters set at submission do not adapt to community needs over time. | **Upvote percentiles**: Priority badge is a mathematical function of crowd-sourced upvotes. Fully dynamic. |
 | **Accountability Erasure** | Admins can "Reject" or erase issues without trace or audit trails. | Transaction logs exist but are unreadable to non-technical users. | **Explicit Status Lifecycle**: The "Rejected" status is deleted. Status changes must log IPFS metadata and transaction proofs. |
+| **Reporter Identity Spoofing** | Users can change names and contact info at report-time, creating fake complaints. | Identity verification is nonexistent or relies on expensive external KYC protocols. | **Readonly Session Binding**: Reporter details are bound to the database login session and rendered `readonly` at report-time. |
+| **Opaque Audit Timelines** | Milestone status changes are stored as single database columns, erasing historical timestamps. | Status history is either untracked or requires manual, multi-transaction logging. | **On-Chain Milestone Stepper**: Chronological status changes (Reported → Routed → In Progress → Resolved) are anchored on-chain with exact timestamps. |
+| **Technical Opaque Logs** | System transaction status logs are hidden or saved in raw backend text files. | Smart contract transactions require complex scanners (Etherscan) to interpret raw bytes. | **Chronological Activity Feed**: Combines block anchorings and mempool sync status alerts into a simple, readable activity card timeline. |
 | **Network Congestion Failures** | Not applicable. | Node transactions fail silently during congestion, causing citizen submissions to hang. | **EIP-1559 + Non-blocking Queue**: Separates UI response from block consensus, preserving speed and reliability. |
 
 ---

@@ -1,6 +1,6 @@
-# Decentralized Tamper-Resistant Civic Issue Reporting System
+# Decentralized Civic Issue Reporting System
 
-A full-stack civic issue management platform that empowers citizens to report local problems, assigns them to the correct government wards and departments, and anchors every report's cryptographic fingerprint onto the **Ethereum Sepolia** testnet to prevent tampering. Media evidence (images, audio, video) is stored via a simulated **IPFS** layer and served locally.
+A full-stack civic issue management platform that empowers citizens to report local problems, assigns them to the correct government wards and departments, and anchors every report's cryptographic fingerprint onto the **Ethereum Sepolia** testnet to prevent tampering. Media evidence (images, audio, video) is stored via a simulated **IPFS** layer and served locally. Now featuring visual e-commerce status trails and simplified blockchain logging.
 
 ---
 
@@ -129,13 +129,19 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 - A 5-second cooldown prevents spam voting.
 - Upvote count is visible on every card across all three role dashboards.
 
-### Blockchain Integrity Verification
-- Each issue gets a deterministic SHA-256 hash of its immutable fields.
-- Hash is stored in the database and pushed to the Sepolia smart contract.
-- Any user can verify tamper-resistance by clicking "Verify Integrity" on a citizen card.
-- Transactions use **EIP-1559** gas estimation for fast confirmation on Sepolia.
-- Receipt verification runs in a **background thread** so the API responds instantly.
-- Failed transactions are queued in `failed_blockchain_txns` and can be retried from the admin panel.
+### Visual Timeline & Stepper Status Trail
+- Every complaint has an audit timeline logged securely in both the database and the blockchain.
+- Citizens can track their issue resolution lifecycle step-by-step using a visual vertical stepper timeline (Reported → Routed → In Progress → Resolved), complete with historical timestamps.
+- Ward representative forwarding and department official actions are tracked automatically.
+
+### Session-Bound Readonly Profile Details
+- The report form automatically populates the reporter's name and contact information from their active login session.
+- To prevent spoofing and spam, these fields are rendered `readonly` and styled to block user edits.
+
+### Simplified Blockchain Operations Feed
+- The admin dashboard features a simplified, chronological operations log that merges anchor transactions and sync status events.
+- Technical transaction details are formatted as easy-to-read cards, highlighting whether an operation is synced on-chain or pending.
+- Administrators can trigger batch retries for any queued sync alerts.
 
 ### Auto-Routing
 - **Ward**: Determined by GPS haversine distance to the nearest ward centre.

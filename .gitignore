@@ -39,3 +39,6 @@ failed_transactions.json
 # Hardhat build files
 smart_contract/cache/
 smart_contract/artifacts/
+
+# Agents workspace customizations
+.agents/

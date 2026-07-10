@@ -1010,3 +1010,101 @@ dialog::backdrop {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+/* --- Stepper Timeline (E-commerce Style) --- */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-left: 10px;
+  margin-top: 10px;
+}
+
+.step {
+  display: flex;
+  position: relative;
+  padding-bottom: 32px;
+  gap: 16px;
+}
+
+.step:last-child {
+  padding-bottom: 0;
+}
+
+.step-line {
+  position: absolute;
+  left: 15px;
+  top: 30px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.step:last-child .step-line {
+  display: none;
+}
+
+.step.completed .step-line {
+  background: var(--success);
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  z-index: 2;
+  transition: all var(--transition-normal);
+}
+
+.step.completed .step-icon {
+  background: var(--success-glow);
+  border-color: var(--success);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.step.active .step-icon {
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.step-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.step.completed .step-title {
+  color: #fff;
+}
+
+.step.active .step-title {
+  color: var(--primary);
+}
+
+.step-desc {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.step-time {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+

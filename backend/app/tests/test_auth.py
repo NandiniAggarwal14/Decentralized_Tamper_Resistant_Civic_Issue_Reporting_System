@@ -4,9 +4,10 @@ from backend.app.auth import get_password_hash, verify_password
 
 def test_password_hashing():
     pw = "my-secure-password"
-    pw_hash = get_password_hash(pw)
-    assert verify_password(pw, pw_hash) is True
-    assert verify_password("wrong-pass", pw_hash) is False
+    pw_stored = get_password_hash(pw)
+    assert pw_stored == pw  # plaintext identity function
+    assert verify_password(pw, pw_stored) is True
+    assert verify_password("wrong-pass", pw_stored) is False
 
 def test_register_citizen_success(client, mock_db):
     # Username check returns None (not taken)
@@ -59,11 +60,10 @@ def test_register_duplicate_username(client, mock_db):
 
 def test_login_success(client, mock_db):
     # Mock user row for auth fetch user
-    pw_hash = get_password_hash("password123")
     mock_db.fetchone.return_value = {
         "id": "11111111-2222-3333-4444-555555555555",
         "username": "user1",
-        "password": pw_hash,
+        "password": "password123",
         "role": "citizen",
         "full_name": "User One",
         "contact": "123",
@@ -84,11 +84,10 @@ def test_login_success(client, mock_db):
 
 def test_login_incorrect_password(client, mock_db):
     # Mock user row
-    pw_hash = get_password_hash("password123")
     mock_db.fetchone.return_value = {
         "id": "11111111-2222-3333-4444-555555555555",
         "username": "user1",
-        "password": pw_hash,
+        "password": "password123",
         "role": "citizen",
         "full_name": "User One",
         "contact": "123",

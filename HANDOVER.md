@@ -113,12 +113,13 @@ root/
 4. 5-second cooldown enforced via DB query on voter's last vote timestamp
 ```
 
-### Blockchain Verification Flow
+### Status Milestone Tracking Flow
 ```
-1. GET /api/issues/{id}/verify (citizen "Verify Integrity" button)
-2. Backend recomputes SHA-256 hash from DB fields
-3. Queries Sepolia contract for stored hash
-4. Returns: verified=True if they match, tampered=True if they don't
+1. Citizen creates issue --> Initial status log inserted in issue_status_history.
+2. Ward Representative redirects issue --> Redirection log inserted (e.g. "Routed to Water Dept").
+3. Department Authority changes status --> In-Progress or Resolved log inserted with comment & proof URL.
+4. All status changes compile details, compute SHA-256 hashes, and anchor them on Ethereum Sepolia.
+5. Citizen opens "Track Status" stepper on citizen.html to load chronological timeline logs.
 ```
 
 ---
@@ -147,6 +148,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 | Priority is dynamic, not stored | Ensures ordering is always fair and reflects current upvote state without DB update on every vote |
 | Rejection removed from authority | Accountability requirement: issues must be actioned, not dismissed |
 | Manual priority removed from ward | Community votes should determine urgency, not individual officials |
+| Profile & Audit removed from officials | Focuses official dashboards on resolution queues and metrics, removing unneeded personal options |
+| Readonly citizen reporter details | Secures reporter identity using database session metadata, preventing spoofed complaints |
+| Stepper timeline status tracker | Provides citizen transparency similar to package trackers, logging status history on-chain |
+| Simplified blockchain operations feed | Shows administrators visual status-badge timeline cards of events instead of raw database queries |
 | GPS haversine routing | Deterministic, no external API needed |
 | Simulated IPFS locally | No Pinata/IPFS node required for dev/demo; CIDs are generated but files are local |
 | Neon PostgreSQL | Serverless-friendly, free tier sufficient for dev; may cold-start |

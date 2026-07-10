@@ -1,4 +1,5 @@
 import logging
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.database import get_connection
@@ -218,6 +219,19 @@ async def redirect_issue(
                 cursor.execute(
                     "UPDATE issues SET department_id = %s WHERE id = %s",
                     (req.department_id, issue_id)
+                )
+
+                # Get department name
+                cursor.execute("SELECT name FROM departments WHERE id = %s", (req.department_id,))
+                dept_name = cursor.fetchone()["name"]
+
+                # Log redirection event to status history
+                cursor.execute(
+                    """
+                    INSERT INTO issue_status_history (id, issue_id, old_status, new_status, changed_by, comments)
+                    VALUES (%s, %s, 'pending', 'pending', %s, %s)
+                    """,
+                    (str(uuid.uuid4()), issue_id, current_user.id, f"Routed to {dept_name}")
                 )
             conn.commit()
         return {"success": True, "message": "Issue redirected to new department"}

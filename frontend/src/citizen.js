@@ -129,7 +129,7 @@ function renderIssues(issues) {
 
         <!-- Actions footer -->
         <div class="issue-footer">
-          <button onclick="auditIssueHash('${issue.id}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">${verifBtnText}</button>
+          <button onclick="trackStatus('${issue.id}', '${issue.created_at}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Track Status</button>
           
           <!-- Upvote Widget -->
           <div class="vote-widget">
@@ -138,9 +138,6 @@ function renderIssues(issues) {
             <button onclick="castVote('${issue.id}', 'down')" class="vote-btn down ${issue.votes.user_vote === 'down' ? 'active' : ''}">▼</button>
           </div>
         </div>
-
-        <!-- Cryptographic Audit Display -->
-        <div id="audit-panel-${issue.id}" class="audit-box" style="display: none;"></div>
       </div>
     `;
   }).join('');
@@ -171,78 +168,119 @@ async function castVote(issueId, voteType) {
   }
 }
 
-// Verify Cryptographic Hash on Sepolia Testnet
-async function auditIssueHash(issueId) {
-  const panel = document.getElementById(`audit-panel-${issueId}`);
-  panel.style.display = 'block';
-  panel.innerHTML = `<span style="animation: pulse-text 1s infinite;">Reading Ethereum contract nodes...</span>`;
-
+// Track Status Trail timeline
+async function trackStatus(issueId, createdAt) {
+  const modal = document.getElementById('trail-modal');
+  const stepper = document.getElementById('trail-stepper');
+  
+  if (!modal || !stepper) return;
+  
+  modal.style.display = 'flex';
+  stepper.innerHTML = `
+    <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+      <span style="animation: pulse-text 1s infinite; display: block; margin-bottom: 12px;">⌛ Fetching audit log ledger...</span>
+    </div>
+  `;
+  
   try {
-    const res = await fetch(`/api/verify/${issueId}`);
+    const res = await fetch(`/api/issues/${issueId}/status-history`);
     const data = await res.json();
     
-    if (res.ok && data.success) {
-      // Localized labels
-      const matchingLabel = window.i18n ? window.i18n.t('matching', 'Matching') : '✓ Matching';
-      const mismatchLabel = window.i18n ? window.i18n.t('discrepancy', 'Discrepancy!') : '✗ Discrepancy!';
-      const securedLabel = window.i18n ? window.i18n.t('verified_secured', 'Verified (Secured)') : '✓ Verified (Secured)';
-      const invalidLabel = window.i18n ? window.i18n.t('invalid_hash', 'Invalid Hash!') : '✗ Invalid Hash!';
-      const provenLabel = window.i18n ? window.i18n.t('resolution_proven', 'Resolution Proven') : '✓ Resolution Proven';
-      const badResolutionLabel = window.i18n ? window.i18n.t('hash_mismatch', 'Hash Mismatch!') : '✗ Hash Mismatch!';
-
-      const dbStatus = data.database_consistent 
-        ? `<span style="color: var(--success); font-weight:bold;">${matchingLabel}</span>` 
-        : `<span style="color: var(--danger); font-weight:bold;">${mismatchLabel}</span>`;
+    if (res.ok && data.history) {
+      const history = data.history;
       
-      const chainStatus = data.verified 
-        ? `<span style="color: var(--success); font-weight:bold;">${securedLabel}</span>` 
-        : `<span style="color: var(--danger); font-weight:bold;">${invalidLabel}</span>`;
-
-      let resolutionHTML = '';
-      if (data.database_completion_hash) {
-        const resolutionStatus = data.completion_verified 
-          ? `<span style="color: var(--success); font-weight:bold;">${provenLabel}</span>` 
-          : `<span style="color: var(--danger); font-weight:bold;">${badResolutionLabel}</span>`;
+      // Parse history steps
+      let reportedTime = new Date(createdAt).toLocaleString();
+      let routedTime = null;
+      let routedDept = null;
+      let inProgressTime = null;
+      let inProgressComments = "";
+      let resolvedTime = null;
+      let resolvedComments = "";
+      let proofUrl = null;
+      
+      history.forEach(item => {
+        const itemTime = new Date(item.created_at).toLocaleString();
+        if (item.new_status === 'pending' && item.comments && item.comments.includes('Routed to')) {
+          routedTime = itemTime;
+          routedDept = item.comments;
+        } else if (item.new_status === 'in_progress') {
+          inProgressTime = itemTime;
+          inProgressComments = item.comments || "Action initiated by department official.";
+        } else if (item.new_status === 'resolved') {
+          resolvedTime = itemTime;
+          resolvedComments = item.comments || "Complaint successfully resolved.";
+          proofUrl = item.proof_url;
+        }
+      });
+      
+      // Compute status flags for rendering
+      const isReported = true;
+      const isRouted = !!(routedTime || inProgressTime || resolvedTime);
+      const isInProgress = !!(inProgressTime || resolvedTime);
+      const isResolved = !!resolvedTime;
+      
+      let stepperHTML = `
+        <div class="stepper">
+          <!-- Step 1: Reported -->
+          <div class="step ${isReported ? 'completed' : ''}">
+            <div class="step-line"></div>
+            <div class="step-icon">📝</div>
+            <div class="step-content">
+              <h4 class="step-title">Complaint Reported</h4>
+              <p class="step-desc">Issue registered by citizen. Status marked pending.</p>
+              <span class="step-time">${reportedTime}</span>
+            </div>
+          </div>
           
-        resolutionHTML = `
-          <div class="audit-row" style="margin-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
-            <span data-i18n="onchain_resolution">On-Chain Resolution:</span>
-            <span>${resolutionStatus}</span>
+          <!-- Step 2: Routed -->
+          <div class="step ${isRouted ? 'completed' : ''} ${isRouted && !isInProgress ? 'active' : ''}">
+            <div class="step-line"></div>
+            <div class="step-icon">🔄</div>
+            <div class="step-content">
+              <h4 class="step-title">Assigned & Routed</h4>
+              <p class="step-desc">${routedTime ? (routedDept || 'Redirected to concern department.') : 'Awaiting routing by Ward representative.'}</p>
+              ${routedTime ? `<span class="step-time">${routedTime}</span>` : ''}
+            </div>
           </div>
-          <div class="audit-row">
-            <span data-i18n="resolution_hash">Resolution Proof Hash:</span>
-            <span style="font-size:0.7rem;">${data.onchain_completion_hash || 'None'}</span>
+          
+          <!-- Step 3: In Progress -->
+          <div class="step ${isInProgress ? 'completed' : ''} ${isInProgress && !isResolved ? 'active' : ''}">
+            <div class="step-line"></div>
+            <div class="step-icon">⚙️</div>
+            <div class="step-content">
+              <h4 class="step-title">Action Initiated</h4>
+              <p class="step-desc">${inProgressTime ? inProgressComments : 'Pending department response.'}</p>
+              ${inProgressTime ? `<span class="step-time">${inProgressTime}</span>` : ''}
+            </div>
           </div>
-        `;
-      }
-
-      panel.innerHTML = `
-        <div class="audit-row">
-          <span data-i18n="db_integrity">Database Integrity:</span>
-          <span>${dbStatus}</span>
+          
+          <!-- Step 4: Resolved -->
+          <div class="step ${isResolved ? 'completed' : ''} ${isResolved ? 'active' : ''}">
+            <div class="step-icon">✅</div>
+            <div class="step-content">
+              <h4 class="step-title">Completed & Resolved</h4>
+              <p class="step-desc">${resolvedTime ? resolvedComments : 'Awaiting final verification proof.'}</p>
+              ${proofUrl ? `<p style="margin-top:8px;"><a href="${proofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;">View Resolution Proof</a></p>` : ''}
+              ${resolvedTime ? `<span class="step-time">${resolvedTime}</span>` : ''}
+            </div>
+          </div>
         </div>
-        <div class="audit-row">
-          <span data-i18n="onchain_registry">On-Chain Registry:</span>
-          <span>${chainStatus}</span>
-        </div>
-        <div class="audit-row">
-          <span data-i18n="recomputed_hash">Recomputed Hash:</span>
-          <span style="font-size:0.7rem;">${data.recomputed_hash}</span>
-        </div>
-        <div class="audit-row">
-          <span data-i18n="onchain_hash">On-Chain Registered Hash:</span>
-          <span style="font-size:0.7rem;">${data.onchain_hash || 'None'}</span>
-        </div>
-        ${resolutionHTML}
       `;
       
-      if (window.i18n) window.i18n.translatePage();
+      stepper.innerHTML = stepperHTML;
     } else {
-      panel.innerHTML = `<span style="color: var(--danger);">Failed to query verification nodes.</span>`;
+      stepper.innerHTML = `<p style="color: var(--danger); text-align: center;">Failed to load status history trail.</p>`;
     }
   } catch (err) {
-    panel.innerHTML = `<span style="color: var(--danger);">Connection lost to local Ethereum nodes.</span>`;
+    console.error(err);
+    stepper.innerHTML = `<p style="color: var(--danger); text-align: center;">Connection error when fetching timeline.</p>`;
   }
+}
+
+function closeTrailModal() {
+  const modal = document.getElementById('trail-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 // Escape utilities

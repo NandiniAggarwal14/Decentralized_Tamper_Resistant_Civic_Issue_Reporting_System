@@ -31,8 +31,7 @@ async function initializeAuthority() {
     // Load Work Queue
     await loadAuthorityIssues();
 
-    // Load Profile & Stats in background
-    await loadProfile();
+    // Load Stats in background
     await loadStats();
   }
 }
