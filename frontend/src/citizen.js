@@ -110,9 +110,51 @@ function renderIssues(issues) {
       `;
     }
 
+    // Rejection details
+    let rejectionHTML = '';
+    if (issue.status === 'rejected' && issue.rejection_reason) {
+      rejectionHTML = `
+        <div class="rejection-stamp-container" style="margin-top: 12px; width: 100%;">
+          <div class="rejection-stamp">REJECTED</div>
+          <div class="rejection-details">
+            <div class="rejection-reason">
+              <strong>Reason:</strong> ${escapeHtml(issue.rejection_reason)}
+            </div>
+            ${issue.rejection_proof_url ? `
+              <div class="rejection-evidence">
+                <strong>Evidence:</strong>
+                <img src="${issue.rejection_proof_url}" class="rejection-proof-inline" onclick="window.open('${issue.rejection_proof_url}', '_blank')" alt="Rejection Evidence" style="max-height: 120px;">
+              </div>
+            ` : ''}
+            <div class="rejection-official">
+              <strong>Rejected By:</strong> ${escapeHtml(issue.rejected_by_name || 'Ward Official')}
+              ${issue.rejected_by_contact ? ` | Contact: ${escapeHtml(issue.rejected_by_contact)}` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     const votePromptKey = issue.status === 'resolved' ? 'vote_satisfaction_prompt' : 'vote_support_prompt';
     const defaultPromptText = issue.status === 'resolved' ? 'Are you satisfied with the resolution?' : 'Do you also face this issue? Show your support.';
     const votePromptText = window.i18n ? window.i18n.t(votePromptKey, defaultPromptText) : defaultPromptText;
+
+    let voteSectionHTML = '';
+    if (issue.status !== 'rejected') {
+      voteSectionHTML = `
+        <div class="vote-section">
+          ${proofHTML}
+          <div class="vote-row">
+            <div class="vote-widget">
+              <button onclick="castVote('${issue.id}', 'up')" class="vote-btn up ${issue.votes.user_vote === 'up' ? 'active' : ''}">▲</button>
+              <span class="vote-number" style="color: ${issue.votes.score >= 0 ? 'var(--success)' : 'var(--danger)'}">${issue.votes.score}</span>
+              <button onclick="castVote('${issue.id}', 'down')" class="vote-btn down ${issue.votes.user_vote === 'down' ? 'active' : ''}">▼</button>
+            </div>
+            <span class="vote-context">${votePromptText}</span>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="issue-card ${issue.status}">
@@ -135,6 +177,9 @@ function renderIssues(issues) {
           ${mediaHTML}
         </div>
 
+        <!-- Rejection Details (if rejected) -->
+        ${rejectionHTML}
+
         <!-- Meta list -->
         <div class="issue-meta-info">
           <span>Area: <strong>${escapeHtml(issue.area)}</strong></span>
@@ -149,17 +194,7 @@ function renderIssues(issues) {
             <button onclick="trackStatus('${issue.id}', '${issue.created_at}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Track Status</button>
           </div>
           
-          <div class="vote-section">
-            ${proofHTML}
-            <div class="vote-row">
-              <div class="vote-widget">
-                <button onclick="castVote('${issue.id}', 'up')" class="vote-btn up ${issue.votes.user_vote === 'up' ? 'active' : ''}">▲</button>
-                <span class="vote-number" style="color: ${issue.votes.score >= 0 ? 'var(--success)' : 'var(--danger)'}">${issue.votes.score}</span>
-                <button onclick="castVote('${issue.id}', 'down')" class="vote-btn down ${issue.votes.user_vote === 'down' ? 'active' : ''}">▼</button>
-              </div>
-              <span class="vote-context">${votePromptText}</span>
-            </div>
-          </div>
+          ${voteSectionHTML}
         </div>
       </div>
     `;
@@ -221,6 +256,11 @@ async function trackStatus(issueId, createdAt) {
       let resolvedTime = null;
       let resolvedComments = "";
       let proofUrl = null;
+      let rejectedTime = null;
+      let rejectedComments = "";
+      let rejectedProofUrl = null;
+      let rejectedByName = "";
+      let rejectedByContact = "";
       
       history.forEach(item => {
         const itemTime = new Date(item.created_at).toLocaleString();
@@ -234,62 +274,101 @@ async function trackStatus(issueId, createdAt) {
           resolvedTime = itemTime;
           resolvedComments = item.comments || "Complaint successfully resolved.";
           proofUrl = item.proof_url;
+        } else if (item.new_status === 'rejected') {
+          rejectedTime = itemTime;
+          rejectedComments = item.comments || "Complaint was rejected by ward official.";
+          rejectedProofUrl = item.proof_url;
+          rejectedByName = item.changed_by_name || "Ward Official";
+          rejectedByContact = item.changed_by_contact || "";
         }
       });
       
-      // Compute status flags for rendering
-      const isReported = true;
-      const isRouted = !!(routedTime || inProgressTime || resolvedTime);
-      const isInProgress = !!(inProgressTime || resolvedTime);
-      const isResolved = !!resolvedTime;
-      
-      let stepperHTML = `
-        <div class="stepper">
-          <!-- Step 1: Reported -->
-          <div class="step ${isReported ? 'completed' : ''}">
-            <div class="step-line"></div>
-            <div class="step-icon">📝</div>
-            <div class="step-content">
-              <h4 class="step-title">Complaint Reported</h4>
-              <p class="step-desc">Issue registered by citizen. Status marked pending.</p>
-              <span class="step-time">${reportedTime}</span>
+      let stepperHTML = '';
+      if (rejectedTime) {
+        stepperHTML = `
+          <div class="stepper">
+            <!-- Step 1: Reported -->
+            <div class="step completed">
+              <div class="step-line" style="background: rgba(239, 68, 68, 0.5);"></div>
+              <div class="step-icon">📝</div>
+              <div class="step-content">
+                <h4 class="step-title">Complaint Reported</h4>
+                <p class="step-desc">Issue registered by citizen. Status marked pending.</p>
+                <span class="step-time">${reportedTime}</span>
+              </div>
+            </div>
+            
+            <!-- Step 2: Rejected -->
+            <div class="step completed active" style="color: #ef4444;">
+              <div class="step-icon" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #ef4444;">❌</div>
+              <div class="step-content">
+                <h4 class="step-title" style="color: #ef4444; font-weight: 700;">Complaint Rejected</h4>
+                <p class="step-desc" style="color: var(--text-secondary);">${escapeHtml(rejectedComments)}</p>
+                <div style="font-size: 0.8rem; margin: 8px 0; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 8px;">
+                  <strong>Rejected By:</strong> ${escapeHtml(rejectedByName)}<br>
+                  ${rejectedByContact ? `<strong>Contact:</strong> ${escapeHtml(rejectedByContact)}` : ''}
+                </div>
+                ${rejectedProofUrl ? `<p style="margin-top:8px;"><a href="${rejectedProofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;border-color:rgba(239,68,68,0.3);color:#ef4444;">View Rejection Evidence</a></p>` : ''}
+                <span class="step-time" style="color: #ef4444;">${rejectedTime}</span>
+              </div>
             </div>
           </div>
-          
-          <!-- Step 2: Routed -->
-          <div class="step ${isRouted ? 'completed' : ''} ${isRouted && !isInProgress ? 'active' : ''}">
-            <div class="step-line"></div>
-            <div class="step-icon">🔄</div>
-            <div class="step-content">
-              <h4 class="step-title">Assigned & Routed</h4>
-              <p class="step-desc">${routedTime ? (routedDept || 'Redirected to concern department.') : 'Awaiting routing by Ward representative.'}</p>
-              ${routedTime ? `<span class="step-time">${routedTime}</span>` : ''}
+        `;
+      } else {
+        // Compute status flags for rendering
+        const isReported = true;
+        const isRouted = !!(routedTime || inProgressTime || resolvedTime);
+        const isInProgress = !!(inProgressTime || resolvedTime);
+        const isResolved = !!resolvedTime;
+        
+        stepperHTML = `
+          <div class="stepper">
+            <!-- Step 1: Reported -->
+            <div class="step ${isReported ? 'completed' : ''}">
+              <div class="step-line"></div>
+              <div class="step-icon">📝</div>
+              <div class="step-content">
+                <h4 class="step-title">Complaint Reported</h4>
+                <p class="step-desc">Issue registered by citizen. Status marked pending.</p>
+                <span class="step-time">${reportedTime}</span>
+              </div>
+            </div>
+            
+            <!-- Step 2: Routed -->
+            <div class="step ${isRouted ? 'completed' : ''} ${isRouted && !isInProgress ? 'active' : ''}">
+              <div class="step-line"></div>
+              <div class="step-icon">🔄</div>
+              <div class="step-content">
+                <h4 class="step-title">Assigned & Routed</h4>
+                <p class="step-desc">${routedTime ? (routedDept || 'Redirected to concern department.') : 'Awaiting routing by Ward representative.'}</p>
+                ${routedTime ? `<span class="step-time">${routedTime}</span>` : ''}
+              </div>
+            </div>
+            
+            <!-- Step 3: In Progress -->
+            <div class="step ${isInProgress ? 'completed' : ''} ${isInProgress && !isResolved ? 'active' : ''}">
+              <div class="step-line"></div>
+              <div class="step-icon">⚙️</div>
+              <div class="step-content">
+                <h4 class="step-title">Action Initiated</h4>
+                <p class="step-desc">${inProgressTime ? inProgressComments : 'Pending department response.'}</p>
+                ${inProgressTime ? `<span class="step-time">${inProgressTime}</span>` : ''}
+              </div>
+            </div>
+            
+            <!-- Step 4: Resolved -->
+            <div class="step ${isResolved ? 'completed' : ''} ${isResolved ? 'active' : ''}">
+              <div class="step-icon">✅</div>
+              <div class="step-content">
+                <h4 class="step-title">Completed & Resolved</h4>
+                <p class="step-desc">${resolvedTime ? resolvedComments : 'Awaiting final verification proof.'}</p>
+                ${proofUrl ? `<p style="margin-top:8px;"><a href="${proofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;">View Resolution Proof</a></p>` : ''}
+                ${resolvedTime ? `<span class="step-time">${resolvedTime}</span>` : ''}
+              </div>
             </div>
           </div>
-          
-          <!-- Step 3: In Progress -->
-          <div class="step ${isInProgress ? 'completed' : ''} ${isInProgress && !isResolved ? 'active' : ''}">
-            <div class="step-line"></div>
-            <div class="step-icon">⚙️</div>
-            <div class="step-content">
-              <h4 class="step-title">Action Initiated</h4>
-              <p class="step-desc">${inProgressTime ? inProgressComments : 'Pending department response.'}</p>
-              ${inProgressTime ? `<span class="step-time">${inProgressTime}</span>` : ''}
-            </div>
-          </div>
-          
-          <!-- Step 4: Resolved -->
-          <div class="step ${isResolved ? 'completed' : ''} ${isResolved ? 'active' : ''}">
-            <div class="step-icon">✅</div>
-            <div class="step-content">
-              <h4 class="step-title">Completed & Resolved</h4>
-              <p class="step-desc">${resolvedTime ? resolvedComments : 'Awaiting final verification proof.'}</p>
-              ${proofUrl ? `<p style="margin-top:8px;"><a href="${proofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;">View Resolution Proof</a></p>` : ''}
-              ${resolvedTime ? `<span class="step-time">${resolvedTime}</span>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
+        `;
+      }
       
       stepper.innerHTML = stepperHTML;
     } else {

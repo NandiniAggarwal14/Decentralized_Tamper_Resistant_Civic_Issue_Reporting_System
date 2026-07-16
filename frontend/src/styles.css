@@ -1159,3 +1159,59 @@ dialog::backdrop {
   font-weight: 600;
 }
 
+/* Rejection stamp overlay */
+.rejection-stamp-container {
+  margin: 16px 0;
+  padding: 16px;
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.06);
+  position: relative;
+}
+
+.rejection-stamp {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: rgba(239, 68, 68, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  transform: rotate(-4deg);
+  border: 4px solid rgba(239, 68, 68, 0.5);
+  padding: 4px 20px;
+  display: inline-block;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.rejection-details {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.rejection-reason {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.rejection-evidence {
+  margin-bottom: 8px;
+}
+
+.rejection-proof-inline {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: block;
+}
+
+.rejection-official {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+

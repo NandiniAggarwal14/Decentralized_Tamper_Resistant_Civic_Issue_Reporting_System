@@ -217,3 +217,10 @@ ALTER TABLE issue_status_history ADD COLUMN IF NOT EXISTS ipfs_cid TEXT;
 
 -- Add blockchain_hash column to issue_status_history if not exists
 ALTER TABLE issue_status_history ADD COLUMN IF NOT EXISTS blockchain_hash TEXT;
+
+-- Add rejection columns to issues if not exists
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS rejection_proof_url TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS rejection_proof_ipfs_cid TEXT;
+ALTER TABLE issues ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES users(id) ON DELETE SET NULL;
+

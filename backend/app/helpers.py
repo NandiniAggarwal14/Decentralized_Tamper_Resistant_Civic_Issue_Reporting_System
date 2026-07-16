@@ -237,6 +237,12 @@ def _serialize_issue(row: dict) -> dict:
         "completion_proof_ipfs_cid": row.get("completion_proof_ipfs_cid"),
         "completion_hash": row.get("completion_hash"),
         "completion_proof_url": row.get("completion_proof_url"),
+        "rejection_reason": row.get("rejection_reason"),
+        "rejection_proof_url": row.get("rejection_proof_url"),
+        "rejection_proof_ipfs_cid": row.get("rejection_proof_ipfs_cid"),
+        "rejected_by": str(row["rejected_by"]) if row.get("rejected_by") else None,
+        "rejected_by_name": row.get("rejected_by_name"),
+        "rejected_by_contact": row.get("rejected_by_contact"),
         "votes": {
             "upvotes": upvotes,
             "downvotes": downvotes,

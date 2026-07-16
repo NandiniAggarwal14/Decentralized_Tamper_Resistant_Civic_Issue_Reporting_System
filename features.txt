@@ -165,9 +165,9 @@ execution worker thread:
 |                            | badges manually to meet | submission do not adapt | Severity is a function   |
 |                            | performance metrics.    | to community support.   | of crowd-sourced votes.  |
 +----------------------------+-------------------------+-------------------------+--------------------------+
-| Accountability Erasure     | Admins can delete or    | Transaction logs exist  | Explicit Lifecycle:      |
-|                            | reject issues with no   | but are unreadable to   | "Rejected" status is     |
-|                            | audit trails.           | non-technical citizens. | removed; audits on-chain.|
+| Accountability Erasure     | Admins or officials can | Transaction logs exist  | Evidence-Based Rejections|
+|                            | delete or reject issues | but are complex and     | Mandates evidence + text |
+|                            | with no audit trails.   | unreadable to citizens. | reasons anchored on-chain|
 +----------------------------+-------------------------+-------------------------+--------------------------+
 | Network Congestion Failures| Not applicable.         | Transactions fail       | EIP-1559 + Async Queue:  |
 |                            |                         | silently during surges  | UI is decoupled from the |

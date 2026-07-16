@@ -43,11 +43,14 @@ async def get_issues(
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
                            i.completion_proof_url,
+                           i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
+                           i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
                            i.upvote_count, i.downvote_count,
                            uv.vote_type AS user_vote
                      FROM issues i
                      LEFT JOIN wards w ON i.ward_id = w.id
                      LEFT JOIN departments d ON i.department_id = d.id
+                     LEFT JOIN users rej ON i.rejected_by = rej.id
                      LEFT JOIN issue_votes uv
                          ON uv.issue_id = i.id AND uv.voter_id = %s
                      ORDER BY i.upvote_count DESC, i.created_at DESC
@@ -240,10 +243,13 @@ async def create_issue(
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
                            i.completion_proof_url,
+                           i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
+                           i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     LEFT JOIN wards w ON i.ward_id = w.id
                     LEFT JOIN departments d ON i.department_id = d.id
+                    LEFT JOIN users rej ON i.rejected_by = rej.id
                     WHERE i.id = %s
                     """,
                     (issue_id,)
@@ -569,7 +575,8 @@ async def get_issue_status_history(issue_id: str) -> dict:
                     """
                     SELECT h.id, h.old_status, h.new_status, h.comments, h.proof_url,
                            h.ipfs_cid, h.blockchain_hash, h.created_at,
-                           u.full_name as changed_by_name, u.role as changed_by_role
+                           u.full_name as changed_by_name, u.role as changed_by_role,
+                           u.contact as changed_by_contact
                     FROM issue_status_history h
                     LEFT JOIN users u ON h.changed_by = u.id
                     WHERE h.issue_id = %s
@@ -592,6 +599,7 @@ async def get_issue_status_history(issue_id: str) -> dict:
                 "created_at": r["created_at"].isoformat() if r["created_at"] else None,
                 "changed_by_name": r["changed_by_name"],
                 "changed_by_role": r["changed_by_role"],
+                "changed_by_contact": r["changed_by_contact"] or "",
             })
         return {"success": True, "count": len(history), "history": history}
     except Exception as exc:

@@ -128,8 +128,35 @@ function renderAuthorityIssues(issues) {
       actionButtons = `
         <button onclick="openResolveDialog('${issue.id}')" class="btn btn-success" style="padding: 8px 16px;" data-i18n="resolve_issue">Resolve Issue</button>
       `;
+    } else if (issue.status === 'rejected') {
+      actionButtons = `<span style="font-size:0.85rem; color: var(--danger); font-weight: bold;">Complaint Rejected by Ward Member</span>`;
     } else {
       actionButtons = `<span style="font-size:0.85rem; color: var(--text-muted);">Issue finalized. Integrity locked.</span>`;
+    }
+
+    // Rejection details block (for rejected status)
+    let rejectionHTML = '';
+    if (issue.status === 'rejected' && issue.rejection_reason) {
+      rejectionHTML = `
+        <div class="rejection-stamp-container" style="margin-top: 12px; width: 100%;">
+          <div class="rejection-stamp">REJECTED</div>
+          <div class="rejection-details">
+            <div class="rejection-reason">
+              <strong>Reason:</strong> ${escapeHtml(issue.rejection_reason)}
+            </div>
+            ${issue.rejection_proof_url ? `
+              <div class="rejection-evidence">
+                <strong>Evidence:</strong>
+                <img src="${issue.rejection_proof_url}" class="rejection-proof-inline" onclick="window.open('${issue.rejection_proof_url}', '_blank')" alt="Rejection Evidence" style="max-height: 120px;">
+              </div>
+            ` : ''}
+            <div class="rejection-official">
+              <strong>Rejected By:</strong> ${escapeHtml(issue.rejected_by_name || 'Ward Official')}
+              ${issue.rejected_by_contact ? ` | Contact: ${escapeHtml(issue.rejected_by_contact)}` : ''}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     return `
@@ -148,12 +175,15 @@ function renderAuthorityIssues(issues) {
         <div style="font-size: 0.85rem; margin: 12px 0; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
           <div><strong>Location:</strong> ${escapeHtml(issue.address || 'GPS Coordinates Only')}</div>
           <div><strong>Ward:</strong> ${escapeHtml(issue.ward_name || 'Unassigned')}</div>
-          <div><strong>Reporter:</strong> ${escapeHtml(issue.reporter_name)} (${escapeHtml(issue.contact || 'N/A')})</div>
+          <div><strong>Reporter:</strong> ${escapeHtml(issue.reporter ? issue.reporter.name : '')} (${escapeHtml(issue.reporter ? issue.reporter.contact : 'N/A')})</div>
           <div><strong>Upvotes:</strong> ${issue.votes ? issue.votes.upvotes : 0}</div>
         </div>
 
         <!-- Render captured files -->
         ${mediaHTML ? `<div class="media-gallery" style="margin-top: 12px; gap: 8px;">${mediaHTML}</div>` : ''}
+
+        <!-- Rejection Details (if rejected) -->
+        ${rejectionHTML}
 
         <div class="issue-footer" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
           <div style="display: flex; gap: 8px;">

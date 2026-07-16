@@ -137,6 +137,62 @@ function renderWardIssues(issues) {
       `<option value="${d.id}" ${issue.department_id === d.id ? 'selected' : ''}>${d.name}</option>`
     ).join('');
 
+    // Rejection details block (for rejected status)
+    let rejectionHTML = '';
+    if (issue.status === 'rejected' && issue.rejection_reason) {
+      rejectionHTML = `
+        <div class="rejection-stamp-container" style="margin-top: 12px;">
+          <div class="rejection-stamp">REJECTED</div>
+          <div class="rejection-details">
+            <div class="rejection-reason">
+              <strong>Reason:</strong> ${escapeHtml(issue.rejection_reason)}
+            </div>
+            ${issue.rejection_proof_url ? `
+              <div class="rejection-evidence">
+                <strong>Evidence:</strong>
+                <img src="${issue.rejection_proof_url}" class="rejection-proof-inline" onclick="window.open('${issue.rejection_proof_url}', '_blank')" alt="Rejection Evidence" style="max-height: 120px;">
+              </div>
+            ` : ''}
+            <div class="rejection-official">
+              <strong>Rejected By:</strong> ${escapeHtml(issue.rejected_by_name || 'Ward Official')}
+              ${issue.rejected_by_contact ? ` | Contact: ${escapeHtml(issue.rejected_by_contact)}` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Resolution details block (for resolved status)
+    let resolutionHTML = '';
+    if (issue.status === 'resolved' && issue.completion_proof_url) {
+      resolutionHTML = `
+        <div class="resolution-proof-container" style="margin-top: 12px; padding: 12px; border: 1px solid var(--success); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
+          <div style="font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 4px;">Resolution Proof</div>
+          <img src="${issue.completion_proof_url}" class="resolution-proof-inline" onclick="window.open('${issue.completion_proof_url}', '_blank')" alt="Resolution Proof" style="max-height: 120px; cursor: pointer; border-radius: 6px;">
+        </div>
+      `;
+    }
+
+    // Footer actions (only for pending issues)
+    let footerActionsHTML = '';
+    if (issue.status === 'pending') {
+      footerActionsHTML = `
+        <div class="issue-footer" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 12px;">
+          <!-- Actions panel -->
+          <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span data-i18n="redirect_dept">Redirect Department:</span>
+              <select id="redirect-dept-${issue.id}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff;">
+                ${redirectOptions}
+              </select>
+              <button onclick="redirectDept('${issue.id}')" class="btn" style="padding: 6px 12px; font-size: 0.8rem;" data-i18n="redirect">Redirect</button>
+            </div>
+            <button onclick="openRejectModal('${issue.id}')" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem; background: #ef4444; border-color: #ef4444;">Reject Complaint</button>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="issue-card ${issue.status}">
         <div class="issue-header">
@@ -159,20 +215,11 @@ function renderWardIssues(issues) {
         <!-- Render captured files -->
         ${mediaHTML ? `<div class="media-gallery" style="margin-top: 12px; gap: 8px;">${mediaHTML}</div>` : ''}
 
-        <div class="issue-footer" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 12px;">
-          <!-- Actions panel -->
-          <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span data-i18n="redirect_dept">Redirect Department:</span>
-              <select id="redirect-dept-${issue.id}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff;">
-                ${redirectOptions}
-              </select>
-              <button onclick="redirectDept('${issue.id}')" class="btn" style="padding: 6px 12px; font-size: 0.8rem;" data-i18n="redirect">Redirect</button>
-            </div>
-            
-          </div>
-        </div>
+        <!-- Resolution / Rejection details -->
+        ${resolutionHTML}
+        ${rejectionHTML}
+
+        ${footerActionsHTML}
       </div>
     `;
   }).join('');
@@ -389,6 +436,64 @@ async function updateProfile(event) {
   }
 }
 
+// Reject Modal logic
+function openRejectModal(issueId) {
+  document.getElementById('reject-issue-id').value = issueId;
+  document.getElementById('reject-reason').value = '';
+  document.getElementById('reject-evidence').value = '';
+  document.getElementById('reject-modal').style.display = 'flex';
+}
+
+function closeRejectModal() {
+  document.getElementById('reject-modal').style.display = 'none';
+}
+
+async function submitRejection(event) {
+  event.preventDefault();
+  const issueId = document.getElementById('reject-issue-id').value;
+  const reason = document.getElementById('reject-reason').value.trim();
+  const evidenceFile = document.getElementById('reject-evidence').files[0];
+
+  if (!reason || !evidenceFile) {
+    showAlert('Please fill in all fields.', true);
+    return;
+  }
+
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Rejecting...';
+
+  const formData = new FormData();
+  formData.append('reason', reason);
+  formData.append('evidence', evidenceFile);
+
+  try {
+    const res = await fetch(`/api/ward/issues/${issueId}/reject`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showAlert('Complaint rejected successfully and anchored to blockchain.', false);
+      closeRejectModal();
+      await loadWardIssues();
+      await loadStats();
+    } else {
+      showAlert(data.detail || 'Failed to reject issue.', true);
+    }
+  } catch (err) {
+    console.error('Error rejecting issue:', err);
+    showAlert('Server connection error during rejection.', true);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Reject Issue';
+  }
+}
+
 // Escape utilities
 function escapeHtml(value) {
   if (!value) return '';
@@ -405,3 +510,7 @@ window.addEventListener('load', initializeWard);
 window.addEventListener('languageChanged', loadWardIssues);
 window.auth_tabs = { switchTab }; // export tab switching globally
 window.switchTab = switchTab;
+window.openRejectModal = openRejectModal;
+window.closeRejectModal = closeRejectModal;
+window.submitRejection = submitRejection;
+

@@ -128,6 +128,35 @@
     </div>
   </div>
 
+  <!-- Rejection Modal -->
+  <div id="reject-modal" class="overlay-container" style="display: none;">
+    <div class="overlay-card" style="max-width: 500px; width: 90%; text-align: left; background: var(--bg-primary); border: 1px solid var(--border); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); padding: 32px; border-radius: var(--radius-lg);">
+      <h2 style="margin-bottom: 8px; color: #ef4444;">Reject Issue</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem; line-height: 1.5;">
+        State the reason why you are rejecting this complaint and upload supporting evidence (image or document). This information will be anchored to the blockchain for public auditing.
+      </p>
+      
+      <form id="reject-form" onsubmit="submitRejection(event)">
+        <input type="hidden" id="reject-issue-id">
+        
+        <div style="margin-bottom: 16px;">
+          <label for="reject-reason" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Reason for Rejection *</label>
+          <textarea id="reject-reason" required placeholder="Describe why this issue is being rejected..." style="width: 100%; min-height: 100px; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; resize: vertical; outline: none;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+          <label for="reject-evidence" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Evidence File (Image/PDF) *</label>
+          <input type="file" id="reject-evidence" required accept="image/*,application/pdf" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; outline: none;">
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" onclick="closeRejectModal()" class="btn btn-secondary" style="padding: 10px 20px;">Cancel</button>
+          <button type="submit" class="btn btn-danger" style="padding: 10px 20px; background: #ef4444; border-color: #ef4444;">Reject Issue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/assets/i18n.js"></script>
   <script src="/assets/auth.js"></script>
   <script src="/assets/ward.js"></script>

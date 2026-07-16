@@ -177,10 +177,13 @@ async def get_authority_issues(current_user: UserResponse = Depends(RoleChecker(
                            i.department_id, d.name as department_name,
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
                            i.completion_proof_url,
+                           i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
+                           i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     LEFT JOIN wards w ON i.ward_id = w.id
                     JOIN departments d ON i.department_id = d.id
+                    LEFT JOIN users rej ON i.rejected_by = rej.id
                     WHERE d.id = %s
                     ORDER BY i.upvote_count DESC, i.created_at DESC
                     """,

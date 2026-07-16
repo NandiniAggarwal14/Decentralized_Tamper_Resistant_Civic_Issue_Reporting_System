@@ -146,7 +146,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 | Decision | Rationale |
 |---|---|
 | Priority is dynamic, not stored | Ensures ordering is always fair and reflects current upvote state without DB update on every vote |
-| Rejection removed from authority | Accountability requirement: issues must be actioned, not dismissed |
+| Rejection restricted to ward members with evidence | Rejections require mandatory text explanation and proof files uploaded to IPFS and anchored on-chain to prevent silent dismissal |
 | Manual priority removed from ward | Community votes should determine urgency, not individual officials |
 | Profile & Audit removed from officials | Focuses official dashboards on resolution queues and metrics, removing unneeded personal options |
 | Readonly citizen reporter details | Secures reporter identity using database session metadata, preventing spoofed complaints |
@@ -205,7 +205,8 @@ departments        -> id, name, description
 category_dept_map  -> category (PK), department_id
 issues             -> id, title, description, category, area, address, lat, lng, reporter_name, contact,
                      image_url, hash, status, priority, ipfs_cid, media_urls, upvote_count, downvote_count,
-                     user_id, ward_id, department_id, completion_proof_ipfs_cid, completion_hash, created_at
+                     user_id, ward_id, department_id, completion_proof_ipfs_cid, completion_hash,
+                     rejection_reason, rejection_proof_url, rejection_proof_ipfs_cid, rejected_by, created_at
 issue_votes        -> (issue_id, voter_id) PK, vote_type, created_at, updated_at
 issue_status_hist  -> id, issue_id, old_status, new_status, changed_by, comments, ipfs_cid,
                      blockchain_hash, proof_url, created_at

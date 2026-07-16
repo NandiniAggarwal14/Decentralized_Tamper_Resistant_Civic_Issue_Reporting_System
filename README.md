@@ -109,8 +109,10 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 ### Issue Lifecycle
 ```
 Submitted (pending) --> In Progress --> Resolved
+                        \__> Rejected (Ward Member level)
 ```
-- Issues can no longer be `rejected` -- this state has been removed to ensure accountability.
+- Issues can be **rejected** by Ward Members with mandatory text reasons and evidence uploads (documents or images), which are stored on IPFS and anchored on the Sepolia blockchain to guarantee transparency.
+
 
 ### Dynamic Priority (Upvote-Driven)
 Issues are **automatically ranked by upvote count**. The priority badge on each card is assigned dynamically when fetching issues:
@@ -347,6 +349,7 @@ http://127.0.0.1:8000
 |---|---|---|
 | `GET` | `/api/ward/issues` | Issues routed to this ward |
 | `POST` | `/api/ward/issues/{id}/redirect` | Redirect issue to a department |
+| `POST` | `/api/ward/issues/{id}/reject` | Reject issue with justification and evidence |
 | `GET` | `/api/ward/stats` | Ward-level statistics |
 | `GET` | `/api/ward/profile` | Ward member's profile |
 | `POST` | `/api/ward/profile` | Update ward member's profile |
