@@ -26,7 +26,7 @@ Thumbs.db
 .idea/
 
 # Runtime data (generated at startup, not source code)
-uploads/
+
 ipfs_storage/
 
 # Test & cache
