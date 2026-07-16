@@ -1,19 +1,17 @@
 // Lightweight client-side localization system
 (function () {
   let translations = {};
-  let currentLang = localStorage.getItem('lang') || 'en';
+  let currentLang = 'en';
 
   // Load translation file from server
   async function loadTranslations(lang) {
     try {
-      const response = await fetch(`/assets/lang/${lang}.json`);
-      if (!response.ok) throw new Error(`Could not load ${lang}.json`);
+      const response = await fetch(`/assets/lang/en.json`);
+      if (!response.ok) throw new Error(`Could not load en.json`);
       translations = await response.json();
-      currentLang = lang;
-      localStorage.setItem('lang', lang);
+      currentLang = 'en';
     } catch (error) {
       console.error('Localization loading error:', error);
-      // Fallback to empty if it fails
       translations = {};
     }
   }
@@ -27,7 +25,7 @@
         // If it's an input or textarea with placeholder
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
           if (el.hasAttribute('placeholder')) {
-            el.setAttribute('placeholder', translations[translations[key] ? key : el.getAttribute('placeholder')]);
+            el.setAttribute('placeholder', translations[key]);
           } else {
             el.value = translations[key];
           }
@@ -52,30 +50,16 @@
     return translations[key] || defaultValue || key;
   }
 
-  // Setup Lang dropdown if present
-  function initLangDropdown() {
-    const select = document.getElementById('lang-select');
-    if (select) {
-      select.value = currentLang;
-      select.addEventListener('change', async (e) => {
-        await changeLanguage(e.target.value);
-      });
-    }
-  }
+  // Setup Lang dropdown if present (no-op as Hindi is removed)
+  function initLangDropdown() {}
 
-  // Change active language
-  async function changeLanguage(lang) {
-    await loadTranslations(lang);
-    translatePage();
-    // Dispatch event so page-specific JS files can react
-    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
-  }
+  // Change active language (no-op)
+  async function changeLanguage(lang) {}
 
   // Initialize on page load
   async function init() {
-    await loadTranslations(currentLang);
+    await loadTranslations('en');
     translatePage();
-    initLangDropdown();
   }
 
   // Export globally
@@ -84,7 +68,7 @@
     changeLanguage,
     t,
     translatePage,
-    getCurrentLanguage: () => currentLang
+    getCurrentLanguage: () => 'en'
   };
 
   // Run automatically when DOM is ready

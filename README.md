@@ -147,10 +147,6 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 - **Ward**: Determined by GPS haversine distance to the nearest ward centre.
 - **Department**: Determined by issue category via the `category_department_map` table.
 
-### Multilingual Support
-- English and Hindi (`frontend/src/lang/en.json`, `hi.json`)
-- Language switcher in the top navigation bar.
-
 ---
 
 ## Project Structure
@@ -203,7 +199,6 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 |   |   |-- styles.css             # Global dark-mode design system
 |   |   |-- lang/
 |   |   |   |-- en.json
-|   |   |   |-- hi.json
 |-- smart_contract/
 |   |-- contracts/
 |   |   |-- CivicRegistry.sol      # Solidity hash registry

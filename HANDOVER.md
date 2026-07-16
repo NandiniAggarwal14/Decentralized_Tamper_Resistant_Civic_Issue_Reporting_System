@@ -57,9 +57,9 @@ root/
 |   |-- admin.html/.js             <-- User mgmt, system stats, blockchain monitor
 |   |-- report.html/.js            <-- Issue submission form with GPS, media upload
 |   |-- auth.js                    <-- Shared: login, register, token storage, redirects
-|   |-- i18n.js                    <-- Translation engine (en/hi)
+|   |-- i18n.js                    <-- Translation engine
 |   |-- styles.css                 <-- Global dark-mode design system
-|   |-- lang/en.json, hi.json
+|   |-- lang/en.json
 |
 |-- smart_contract/                <-- Hardhat project for Solidity contract
 |-- uploads/                       <-- Uploaded images/audio/video (gitignored)
