@@ -128,6 +128,14 @@ CREATE TABLE IF NOT EXISTS issue_status_history (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Backfill completion_proof_url from status history if missing
+UPDATE issues i
+SET completion_proof_url = h.proof_url
+FROM issue_status_history h
+WHERE i.id = h.issue_id
+  AND h.new_status = 'resolved'
+  AND i.completion_proof_url IS NULL;
+
 -- ---------------------------------------------------------------------------
 -- 7. Recompute denormalized vote counts (idempotent)
 -- ---------------------------------------------------------------------------
