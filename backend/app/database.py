@@ -58,39 +58,94 @@ def get_pool() -> psycopg2.pool.ThreadedConnectionPool:
     return _pool
 
 
+def _is_connection_alive(conn) -> bool:
+    """Quick health-check: returns True if the connection can execute a query."""
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        conn.autocommit = False
+        return True
+    except Exception:
+        return False
+
+
 @contextmanager
 def get_connection():
     """
     Yield a psycopg2 connection from the pool.
-    The connection is returned to the pool on exit.
-    On any pool error (e.g. Neon sleep), fall back to a direct connection.
+
+    Before yielding, the connection is validated with a lightweight SELECT 1.
+    If the underlying SSL socket was killed by Neon during sleep, the dead
+    connection is discarded, the pool is rebuilt, and a fresh connection is
+    obtained.  Up to 3 retries are attempted before falling back to a direct
+    (non-pooled) connection.
     """
-    pool = get_pool()
+    global _pool
     conn = None
     from_pool = False
-    try:
-        conn = pool.getconn()
-        from_pool = True
-        # Reset autocommit off — callers use explicit conn.commit()
-        conn.autocommit = False
-        yield conn
-    except psycopg2.pool.PoolError:
-        # Pool exhausted or closed — open a direct connection as fallback
-        logger.warning("Pool unavailable, falling back to direct connection.")
+    max_retries = 3
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            pool = get_pool()
+            conn = pool.getconn()
+            from_pool = True
+
+            if _is_connection_alive(conn):
+                conn.autocommit = False
+                break  # healthy — use this connection
+
+            # Dead connection — discard it and rebuild the pool
+            logger.warning(
+                "Stale pooled connection detected (attempt %d/%d). "
+                "Discarding and rebuilding pool.",
+                attempt, max_retries,
+            )
+            try:
+                pool.putconn(conn, close=True)
+            except Exception:
+                pass
+            conn = None
+            from_pool = False
+
+            # Tear down the entire pool so the next get_pool() builds fresh
+            with _pool_lock:
+                try:
+                    _pool.closeall()
+                except Exception:
+                    pass
+                _pool = None
+
+        except psycopg2.pool.PoolError:
+            logger.warning(
+                "Pool unavailable (attempt %d/%d).", attempt, max_retries,
+            )
+            conn = None
+            from_pool = False
+    else:
+        # All retries exhausted — fall back to a direct connection
+        logger.warning("All pool retries exhausted. Opening direct connection.")
         conn = psycopg2.connect(
             get_database_url(),
             cursor_factory=RealDictCursor,
             connect_timeout=_CONNECT_TIMEOUT,
         )
         from_pool = False
+
+    try:
+        conn.autocommit = False
         yield conn
     finally:
         if conn is not None:
             if from_pool:
                 try:
-                    pool.putconn(conn)
+                    get_pool().putconn(conn)
                 except Exception:
-                    pass
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
             else:
                 try:
                     conn.close()
