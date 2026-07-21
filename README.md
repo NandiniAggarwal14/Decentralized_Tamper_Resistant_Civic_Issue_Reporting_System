@@ -40,6 +40,7 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 | Layer | Technology |
 |---|---|
 | Backend | FastAPI (Python 3.10+) |
+| AI / ML | PyTorch + Torchvision (ResNet-50 Deep Learning Classifier) |
 | Frontend | Vanilla HTML + CSS + JavaScript |
 | Database | Neon PostgreSQL (cloud-hosted, shared) |
 | Blockchain | Ethereum Sepolia via Infura + Web3.py |
@@ -108,10 +109,14 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 
 ### Issue Lifecycle
 ```
-Submitted (pending) --> In Progress --> Resolved
-                        \__> Rejected (Ward Member level)
-```
 - Issues can be **rejected** by Ward Members with mandatory text reasons and evidence uploads (documents or images), which are stored on IPFS and anchored on the Sepolia blockchain to guarantee transparency.
+
+### Multi-Phase AI Image Verification (PyTorch ResNet-50)
+Every uploaded image across the complaint lifecycle is automatically evaluated by a fine-tuned **ResNet-50** deep-learning binary classifier to detect synthetic or AI-generated media (`Fake`) versus authentic photography (`Real`):
+- **Citizen Submission**: Evaluates primary report photos upon registration.
+- **Ward Rejection Evidence**: Evaluates evidence uploaded by ward representatives during rejection.
+- **Authority Resolution Proof**: Evaluates completion proof photos uploaded by department officials.
+- **Visual Transparency Badges**: Real-time badges (`🟢 REAL [confidence%]` / `🔴 FAKE (AI-Generated) [confidence%]`) are rendered on issue cards and inside the Citizen Status Audit Trail timeline modal.
 
 
 ### Dynamic Priority (Upvote-Driven)
@@ -155,6 +160,8 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 
 ```
 .
+|-- AI/
+|   |-- Models/                    # Fine-tuned PyTorch ResNet-50 checkpoints
 |-- backend/
 |   |-- app/
 |   |   |-- main.py                # FastAPI app entry point, middleware, static mounts
@@ -163,12 +170,17 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 |   |   |-- database.py            # Neon PostgreSQL connection pool (psycopg2)
 |   |   |-- schema.sql             # Full DB schema with migrations (run via init_db())
 |   |   |-- models.py              # Pydantic request/response models
-|   |   |-- helpers.py             # Shared utility functions (hashing, priority calc, etc.)
+|   |   |-- helpers.py             # Shared utility functions (hashing, priority calc, serialization)
 |   |   |-- routing.py             # GPS ward routing + category classification
 |   |   |-- blockchain_service.py  # Web3.py Sepolia integration (EIP-1559, async receipts)
 |   |   |-- ipfs_service.py        # Simulated IPFS JSON storage
+|   |   |-- ai/                    # PyTorch AI Classifier Package
+|   |   |   |-- __init__.py
+|   |   |   |-- model.py           # ResNet-50 singleton model loader
+|   |   |   |-- predict.py         # Image preprocessing & binary classification pipeline
 |   |   |-- routes/
 |   |   |   |-- __init__.py
+|   |   |   |-- ai.py              # /api/ai/* endpoints
 |   |   |   |-- auth.py            # /api/auth/* endpoints
 |   |   |   |-- issues.py          # /api/issues/* endpoints
 |   |   |   |-- ward.py            # /api/ward/* endpoints
@@ -179,22 +191,26 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 |   |   |-- tests/
 |   |   |   |-- conftest.py
 |   |   |   |-- test_admin.py
+|   |   |   |-- test_ai.py         # AI verification endpoints & model integration test
 |   |   |   |-- test_auth.py
 |   |   |   |-- test_issues.py
 |   |   |   |-- test_routing.py
 |   |   |   |-- test_voting.py
 |   |-- scripts/
 |   |   |-- seed.py                # Truncate + re-seed (admin, wards, departments)
+|   |   |-- refresh_reports.py     # Purge all issue data, votes, and status trails
+|   |   |-- refresh_users.py       # Purge non-admin user accounts and reset ward links
 |   |   |-- backfill_hashes.py     # One-time script to hash existing issues
 |   |   |-- verify_sync_status.py  # Checks DB vs on-chain hash consistency
 |   |   |-- reset_passwords.py     # Password reset utility
 |-- frontend/
 |   |-- src/
 |   |   |-- index.html             # Home page (Login / Register)
-|   |   |-- citizen.html / .js     # Citizen dashboard
-|   |   |-- ward.html / .js        # Ward member dashboard
-|   |   |-- authority.html / .js   # Government authority dashboard
+|   |   |-- citizen.html / .js     # Citizen dashboard & audit trail
+|   |   |-- ward.html / .js        # Ward member dashboard & evidence proof
+|   |   |-- authority.html / .js   # Government authority dashboard & resolution proof
 |   |   |-- admin.html / .js       # Admin dashboard (users, stats, blockchain monitor)
+|   |   |-- ai.html / .js          # Standalone AI Image Verification Sandbox
 |   |   |-- report.html / .js      # Issue submission form
 |   |   |-- auth.js                # Shared auth helpers
 |   |   |-- i18n.js                # Internationalisation engine
@@ -212,7 +228,6 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 |-- .env                           # Secrets (never committed)
 |-- .gitignore
 |-- requirements.txt
-|-- HANDOVER.md                    # Developer handover document
 |-- README.md
 ```
 
@@ -375,6 +390,12 @@ http://127.0.0.1:8000
 | `GET` | `/api/admin/failed-transactions` | Failed blockchain transaction queue |
 | `POST` | `/api/admin/retry-transactions` | Retry all failed transactions |
 
+### AI Image Authenticity Verification
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/ai/predict` | Predict if an uploaded image is Fake (AI-Generated) or Real |
+| `POST` | `/api/ai/predict/` | Alias endpoint for AI prediction |
+
 ### Health
 | Method | Endpoint | Description |
 |---|---|---|
@@ -435,7 +456,19 @@ Transaction nonces are fetched with the `'pending'` block tag to account for in-
 
 ## Seeding & Data Reset
 
-To wipe all issues, votes, and users and start fresh (admin account recreated):
+To wipe all issues, votes, status history, and failed blockchain transaction logs (preserving users, wards, and departments):
+
+```bash
+python -m backend.scripts.refresh_reports
+```
+
+To purge all non-admin user accounts (`citizen`, `ward_member`, `authority`) and unassign members from wards:
+
+```bash
+python -m backend.scripts.refresh_users
+```
+
+To perform a complete database re-seed (recreates default Delhi wards, departments, category maps, and admin account):
 
 ```bash
 python -m backend.scripts.seed

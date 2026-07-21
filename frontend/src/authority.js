@@ -118,6 +118,23 @@ function renderAuthorityIssues(issues) {
       return '';
     }).join('');
 
+    // Resolution proof block (resolved issues)
+    let resolutionHTML = '';
+    if (issue.status === 'resolved' && issue.completion_proof_url) {
+      const compAiBadge = issue.completion_ai_prediction
+        ? (issue.completion_ai_prediction === 'Fake'
+            ? `<div style="margin-top:6px;"><span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 PROOF: FAKE (AI-Generated)${issue.completion_ai_confidence ? ' ' + issue.completion_ai_confidence.toFixed(1) + '%' : ''}</span></div>`
+            : `<div style="margin-top:6px;"><span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 PROOF: REAL${issue.completion_ai_confidence ? ' ' + issue.completion_ai_confidence.toFixed(1) + '%' : ''}</span></div>`)
+        : '';
+      resolutionHTML = `
+        <div class="resolution-proof-container" style="margin-top: 12px; padding: 12px; border: 1px solid var(--success); border-radius: 8px; background: rgba(16, 185, 129, 0.05);">
+          <div style="font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 4px;">Resolution Proof</div>
+          <img src="${issue.completion_proof_url}" onclick="window.open('${issue.completion_proof_url}', '_blank')" alt="Resolution Proof" style="max-height: 120px; cursor: pointer; border-radius: 6px;">
+          ${compAiBadge}
+        </div>
+      `;
+    }
+
     // Active action options
     let actionButtons = '';
     if (issue.status === 'pending') {
@@ -148,6 +165,7 @@ function renderAuthorityIssues(issues) {
               <div class="rejection-evidence">
                 <strong>Evidence:</strong>
                 <img src="${issue.rejection_proof_url}" class="rejection-proof-inline" onclick="window.open('${issue.rejection_proof_url}', '_blank')" alt="Rejection Evidence" style="max-height: 120px;">
+                ${issue.rejection_ai_prediction ? `<div style="margin-top:6px;">${issue.rejection_ai_prediction === 'Fake' ? '<span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 REJECTION EVIDENCE: FAKE (AI-Generated) ' + (issue.rejection_ai_confidence ? issue.rejection_ai_confidence.toFixed(1) + '%' : '') + '</span>' : '<span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 REJECTION EVIDENCE: REAL ' + (issue.rejection_ai_confidence ? issue.rejection_ai_confidence.toFixed(1) + '%' : '') + '</span>'}</div>` : ''}
               </div>
             ` : ''}
             <div class="rejection-official">
@@ -159,12 +177,24 @@ function renderAuthorityIssues(issues) {
       `;
     }
 
+    let aiBadgeHTML = '';
+    if (issue.ai_prediction) {
+      const isFake = issue.ai_prediction === 'Fake';
+      const badgeStyle = isFake 
+        ? 'background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4);'
+        : 'background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4);';
+      const badgeIcon = isFake ? '🔴' : '🟢';
+      const confText = issue.ai_confidence ? ` ${issue.ai_confidence.toFixed(1)}%` : '';
+      aiBadgeHTML = `<span class="badge" style="${badgeStyle}" title="AI ResNet50 Inspection">${badgeIcon} ${issue.ai_prediction.toUpperCase()}${confText}</span>`;
+    }
+
     return `
       <div class="issue-card ${issue.status}">
         <div class="issue-header">
           <div>
             <span class="badge badge-${issue.status}">${statusText}</span>
             <span class="badge badge-priority-${issue.priority}">${priorityText}</span>
+            ${aiBadgeHTML}
           </div>
           <span style="font-size: 0.8rem; color: var(--text-muted);">${formattedDate}</span>
         </div>
@@ -184,6 +214,9 @@ function renderAuthorityIssues(issues) {
 
         <!-- Rejection Details (if rejected) -->
         ${rejectionHTML}
+
+        <!-- Resolution Proof (if resolved) -->
+        ${resolutionHTML}
 
         <div class="issue-footer" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
           <div style="display: flex; gap: 8px;">

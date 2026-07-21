@@ -45,6 +45,9 @@ async def get_issues(
                            i.completion_proof_url,
                            i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
                            i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
+                           i.ai_prediction, i.ai_confidence, i.ai_probability,
+                           i.completion_ai_prediction, i.completion_ai_confidence,
+                           i.rejection_ai_prediction, i.rejection_ai_confidence,
                            i.upvote_count, i.downvote_count,
                            uv.vote_type AS user_vote
                      FROM issues i
@@ -126,17 +129,32 @@ async def create_issue(
 
     media_list = []
     primary_image_url = None
+    ai_prediction = None
+    ai_confidence = None
+    ai_probability = None
+
     if image:
+        try:
+            image_content = await image.read()
+            await image.seek(0)
+            from backend.app.ai.predict import predict_image
+            ai_res = predict_image(image_content)
+            ai_prediction = ai_res.get("prediction")
+            ai_confidence = ai_res.get("confidence")
+            ai_probability = ai_res.get("probability")
+        except Exception as ai_exc:
+            logging.warning(f"AI image inspection failed during report submission: {ai_exc}")
+
         img_info = await _save_media_file(image, expected_type="image")
         if img_info:
             media_list.append(img_info)
             primary_image_url = img_info["url"]
-            
+
     if audio:
         aud_info = await _save_media_file(audio, expected_type="audio")
         if aud_info:
             media_list.append(aud_info)
-            
+
     if video:
         vid_info = await _save_media_file(video, expected_type="video")
         if vid_info:
@@ -189,13 +207,15 @@ async def create_issue(
                         id, title, description, category, area, address,
                         latitude, longitude, reporter_name, contact,
                         image_url, hash, status, created_at,
-                        user_id, ward_id, department_id, priority, ipfs_cid, media_urls
+                        user_id, ward_id, department_id, priority, ipfs_cid, media_urls,
+                        ai_prediction, ai_confidence, ai_probability
                     )
                     VALUES (
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, 'pending', %s,
-                        %s, %s, %s, 'low', %s, %s
+                        %s, %s, %s, 'low', %s, %s,
+                        %s, %s, %s
                     )
                     RETURNING id
                     """,
@@ -217,8 +237,11 @@ async def create_issue(
                         ward_id,
                         dept_id,
                         ipfs_cid,
-                        json.dumps(media_list)
-                    ),
+                        json.dumps(media_list),
+                        ai_prediction,
+                        ai_confidence,
+                        ai_probability
+                    )
                 )
                 cursor.fetchone()
 
@@ -245,6 +268,9 @@ async def create_issue(
                            i.completion_proof_url,
                            i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
                            i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
+                           i.ai_prediction, i.ai_confidence, i.ai_probability,
+                           i.completion_ai_prediction, i.completion_ai_confidence,
+                           i.rejection_ai_prediction, i.rejection_ai_confidence,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     LEFT JOIN wards w ON i.ward_id = w.id

@@ -284,6 +284,18 @@ async def resolve_issue(
                 
                 old_status = issue["status"]
 
+        completion_ai_prediction = None
+        completion_ai_confidence = None
+        try:
+            proof_bytes = await proof_file.read()
+            await proof_file.seek(0)
+            from backend.app.ai.predict import predict_image
+            ai_res = predict_image(proof_bytes)
+            completion_ai_prediction = ai_res.get("prediction")
+            completion_ai_confidence = ai_res.get("confidence")
+        except Exception as ai_exc:
+            logging.warning(f"AI inspection failed on resolution proof: {ai_exc}")
+
         proof_info = await _save_media_file(proof_file, expected_type="proof")
         if not proof_info:
             raise HTTPException(status_code=400, detail="Failed to save resolution proof file")
@@ -297,7 +309,9 @@ async def resolve_issue(
             "resolved_by_name": current_user.full_name,
             "comments": comments,
             "proof_file": proof_info,
-            "resolved_at": datetime.now(timezone.utc).isoformat()
+            "resolved_at": datetime.now(timezone.utc).isoformat(),
+            "ai_prediction": completion_ai_prediction,
+            "ai_confidence": completion_ai_confidence
         }
         completion_proof_ipfs_cid = ipfs_service.store_json(completion_data, type_label="completion_proof")
 
@@ -336,7 +350,7 @@ async def resolve_issue(
                     (issue_id,)
                 )
 
-                # 2. Update issue status, proof url, and reset upvote/downvote counts
+                # 2. Update issue status, proof url, AI status, and reset upvote/downvote counts
                 cursor.execute(
                     """
                     UPDATE issues
@@ -344,11 +358,13 @@ async def resolve_issue(
                         completion_proof_ipfs_cid = %s,
                         completion_hash = %s,
                         completion_proof_url = %s,
+                        completion_ai_prediction = %s,
+                        completion_ai_confidence = %s,
                         upvote_count = 0,
                         downvote_count = 0
                     WHERE id = %s
                     """,
-                    (completion_proof_ipfs_cid, completion_hash, proof_url, issue_id)
+                    (completion_proof_ipfs_cid, completion_hash, proof_url, completion_ai_prediction, completion_ai_confidence, issue_id)
                 )
 
                 cursor.execute(

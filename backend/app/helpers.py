@@ -243,6 +243,13 @@ def _serialize_issue(row: dict) -> dict:
         "rejected_by": str(row["rejected_by"]) if row.get("rejected_by") else None,
         "rejected_by_name": row.get("rejected_by_name"),
         "rejected_by_contact": row.get("rejected_by_contact"),
+        "ai_prediction": row.get("ai_prediction"),
+        "ai_confidence": row.get("ai_confidence"),
+        "ai_probability": row.get("ai_probability"),
+        "completion_ai_prediction": row.get("completion_ai_prediction"),
+        "completion_ai_confidence": row.get("completion_ai_confidence"),
+        "rejection_ai_prediction": row.get("rejection_ai_prediction"),
+        "rejection_ai_confidence": row.get("rejection_ai_confidence"),
         "votes": {
             "upvotes": upvotes,
             "downvotes": downvotes,

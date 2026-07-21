@@ -40,5 +40,13 @@ failed_transactions.json
 smart_contract/cache/
 smart_contract/artifacts/
 
+# Media uploads
+uploads/
+
+# PyTorch Model Checkpoints & Large Weights
+*.pth
+*.pt
+AI/Models/
+
 # Agents workspace customizations
 .agents/

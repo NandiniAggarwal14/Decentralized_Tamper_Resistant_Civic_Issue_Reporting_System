@@ -109,7 +109,14 @@ ALTER TABLE issues
     ADD COLUMN IF NOT EXISTS media_urls JSONB DEFAULT '[]'::JSONB,
     ADD COLUMN IF NOT EXISTS completion_proof_ipfs_cid TEXT,
     ADD COLUMN IF NOT EXISTS completion_hash TEXT,
-    ADD COLUMN IF NOT EXISTS completion_proof_url TEXT;
+    ADD COLUMN IF NOT EXISTS completion_proof_url TEXT,
+    ADD COLUMN IF NOT EXISTS ai_prediction VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS ai_confidence DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS ai_probability DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS completion_ai_prediction VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS completion_ai_confidence DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS rejection_ai_prediction VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS rejection_ai_confidence DOUBLE PRECISION;
 
 -- ---------------------------------------------------------------------------
 -- 6. Status change audit trail

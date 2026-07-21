@@ -19,14 +19,22 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app_instance):
-    # ── Startup: warm up the DB connection pool so the first request is fast ──
+    # ── Startup: warm up DB connection pool and load AI model ──
     import asyncio
     try:
         await asyncio.get_event_loop().run_in_executor(None, db_warmup)
     except Exception as exc:
         logging.warning("DB warmup on startup failed (non-fatal): %s", exc)
+
+    try:
+        from backend.app.ai.model import load_model
+        await asyncio.get_event_loop().run_in_executor(None, load_model)
+        logging.info("AI model loaded on startup.")
+    except Exception as exc:
+        logging.warning("AI model loading on startup failed (non-fatal): %s", exc)
+
     yield
-    # ── Shutdown: nothing extra needed, pool auto-closes ──
+    # ── Shutdown: nothing extra needed ──
 
 app = FastAPI(title=PROJECT_NAME, version="0.2.0", lifespan=lifespan)
 
@@ -57,6 +65,7 @@ from backend.app.routes.ward import router as ward_router
 from backend.app.routes.authority import router as authority_router
 from backend.app.routes.admin import router as admin_router
 from backend.app.routes.pages import router as pages_router
+from backend.app.routes.ai import router as ai_router
 
 app.include_router(auth_router)
 app.include_router(issues_router)
@@ -64,6 +73,11 @@ app.include_router(ward_router)
 app.include_router(authority_router)
 app.include_router(admin_router)
 app.include_router(pages_router)
+
+# Mount AI router under both /api and /api/ai for flexibility
+app.include_router(ai_router, prefix="/api")
+app.include_router(ai_router, prefix="/api/ai")
+
 
 # General /api/health endpoint
 @app.get("/api/health")

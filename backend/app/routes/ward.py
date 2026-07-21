@@ -175,6 +175,9 @@ async def get_ward_issues(current_user: UserResponse = Depends(RoleChecker(["war
                            i.completion_proof_url,
                            i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
                            i.rejected_by, rej.full_name as rejected_by_name, rej.contact as rejected_by_contact,
+                           i.ai_prediction, i.ai_confidence, i.ai_probability,
+                           i.completion_ai_prediction, i.completion_ai_confidence,
+                           i.rejection_ai_prediction, i.rejection_ai_confidence,
                            i.upvote_count, i.downvote_count
                     FROM issues i
                     JOIN wards w ON i.ward_id = w.id
@@ -282,6 +285,18 @@ async def reject_issue(
                 old_status = issue["status"]
 
         # 2. Save evidence file to local uploads and IPFS
+        rejection_ai_prediction = None
+        rejection_ai_confidence = None
+        try:
+            evidence_bytes = await evidence.read()
+            await evidence.seek(0)
+            from backend.app.ai.predict import predict_image
+            ai_res = predict_image(evidence_bytes)
+            rejection_ai_prediction = ai_res.get("prediction")
+            rejection_ai_confidence = ai_res.get("confidence")
+        except Exception as ai_exc:
+            logging.warning(f"AI inspection failed on rejection evidence: {ai_exc}")
+
         evidence_info = await _save_media_file(evidence, expected_type="proof")
         if not evidence_info:
             raise HTTPException(status_code=400, detail="Failed to save rejection evidence file")
@@ -297,7 +312,9 @@ async def reject_issue(
             "rejected_by_contact": current_user.contact or "",
             "reason": reason,
             "evidence": evidence_info,
-            "rejected_at": datetime.now(timezone.utc).isoformat()
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
+            "ai_prediction": rejection_ai_prediction,
+            "ai_confidence": rejection_ai_confidence
         }
         rejection_ipfs_cid = ipfs_service.store_json(rejection_data, type_label="rejection_proof")
         rejection_hash = hashlib.sha256(
@@ -342,11 +359,13 @@ async def reject_issue(
                         rejection_proof_url = %s,
                         rejection_proof_ipfs_cid = %s,
                         rejected_by = %s,
+                        rejection_ai_prediction = %s,
+                        rejection_ai_confidence = %s,
                         upvote_count = 0,
                         downvote_count = 0
                     WHERE id = %s
                     """,
-                    (reason, evidence_url, evidence_cid, current_user.id, issue_id)
+                    (reason, evidence_url, evidence_cid, current_user.id, rejection_ai_prediction, rejection_ai_confidence, issue_id)
                 )
 
                 # 6c. Insert history record

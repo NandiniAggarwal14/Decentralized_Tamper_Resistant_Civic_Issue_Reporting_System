@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Authenticity Detector — Civic Portal</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-text">
+          <h1 data-i18n="title">Decentralized Portal</h1>
+          <p>AI Authenticity Console</p>
+        </div>
+      </div>
+
+      <!-- Profile Card -->
+      <div class="sidebar-profile">
+        <div class="profile-avatar" id="profile-initials">U</div>
+        <div class="profile-info">
+          <div class="name" id="profile-name">Portal User</div>
+          <div class="role" id="profile-role">Verified Session</div>
+        </div>
+      </div>
+
+      <!-- Navigation links -->
+      <nav class="sidebar-nav">
+        <a class="nav-link" href="/citizen.html">
+          <span>📱</span> <span data-i18n="public_feed">Public Feed</span>
+        </a>
+        <a class="nav-link" href="/report.html">
+          <span>📝</span> <span data-i18n="report_complaint">Report Issue</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="auth.logout()" class="btn btn-danger" style="width: 100%;" data-i18n="signout">Logout</button>
+      </div>
+    </aside>
+
+    <!-- RIGHT CONTENT AREA -->
+    <main style="padding: 40px; overflow-y: auto; height: 100vh; width: 100%;">
+      <div style="max-width: 840px; margin: 0 auto;">
+        
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+          <div>
+            <h2>🤖 AI Image Authenticity Detector</h2>
+            <p style="font-size: 0.95rem; color: var(--text-secondary);">
+              Deep-learning ResNet50 classifier to detect AI-generated (Fake) vs authentic (Real) civic evidence photos
+            </p>
+          </div>
+        </div>
+
+        <!-- Alert Banner -->
+        <div id="ai-alert-banner" class="alert-banner" style="display: none; margin-bottom: 24px;">
+          <span id="ai-alert-text">Notification</span>
+        </div>
+
+        <!-- Upload Drop Zone Card -->
+        <div class="card" style="padding: 32px; text-align: center; margin-bottom: 32px;">
+          <div id="drop-zone" class="ai-dropzone">
+            <input type="file" id="ai-file-input" accept="image/*" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 12px;">📸</div>
+            <h3 style="margin-bottom: 8px;">Drag & Drop Evidence Image</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+              Or click to select a file from your device (JPG, PNG, WebP, max 10MB)
+            </p>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('ai-file-input').click()">
+              Choose Image File
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Container (Hidden by default) -->
+        <div id="ai-result-card" class="card" style="display: none; padding: 32px; border: 1px solid var(--border);">
+          <div style="display: flex; gap: 32px; align-items: center; flex-wrap: wrap;">
+            
+            <!-- Image Preview -->
+            <div style="flex: 0 0 220px; text-align: center;">
+              <img id="ai-preview-img" src="" alt="Analyzed Evidence" 
+                   style="width: 200px; height: 200px; object-fit: cover; border-radius: 12px; border: 2px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
+            </div>
+
+            <!-- Analysis Details -->
+            <div style="flex: 1; min-width: 280px;">
+              <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 0.85rem; text-transform: uppercase; tracking: 1px; color: var(--text-muted);">AI Inspection Result</span>
+                <span id="ai-device-badge" class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-secondary);">ResNet50 Model</span>
+              </div>
+
+              <!-- Main Verdict Banner -->
+              <div id="verdict-banner" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px 20px; border-radius: 12px;">
+                <span id="verdict-icon" style="font-size: 2rem;">🔍</span>
+                <div>
+                  <div id="verdict-label" style="font-size: 1.6rem; font-weight: 700; font-family: var(--font-display);">Analyzing...</div>
+                  <div id="verdict-subtitle" style="font-size: 0.85rem; color: var(--text-secondary);">Processing neural network weights...</div>
+                </div>
+              </div>
+
+              <!-- Confidence Progress Bar -->
+              <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;">
+                  <span>Confidence Score</span>
+                  <strong id="confidence-text">0.00%</strong>
+                </div>
+                <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden;">
+                  <div id="confidence-bar" style="width: 0%; height: 100%; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                </div>
+              </div>
+
+              <!-- Detailed Stats Grid -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--border);">
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">Raw Probability</span>
+                  <div id="stat-probability" style="font-weight: 600; font-size: 1rem;">-</div>
+                </div>
+                <div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">Execution Engine</span>
+                  <div id="stat-engine" style="font-weight: 600; font-size: 1rem;">PyTorch 2.0+</div>
+                </div>
+              </div>
+
+              <!-- Re-analyze button -->
+              <div style="margin-top: 24px;">
+                <button type="button" class="btn btn-secondary" onclick="resetAiInspector()">
+                  🔄 Test Another Image
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="/assets/auth.js"></script>
+  <script src="/assets/ai.js"></script>
+</body>
+</html>

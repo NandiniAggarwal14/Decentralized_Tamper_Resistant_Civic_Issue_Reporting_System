@@ -1214,4 +1214,20 @@ dialog::backdrop {
   border-top: 1px solid var(--border);
 }
 
+/* --- AI Verification Module Styles --- */
+.ai-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.ai-dropzone:hover, .ai-dropzone.highlight {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+
 

@@ -102,10 +102,16 @@ function renderIssues(issues) {
     let proofHTML = '';
     if (issue.status === 'resolved' && issue.completion_proof_url) {
       const proofLabelText = window.i18n ? window.i18n.t('resolution_proof_label', 'Resolution Proof') : 'Resolution Proof';
+      const proofAiBadge = issue.completion_ai_prediction
+        ? (issue.completion_ai_prediction === 'Fake'
+            ? `<div style="margin-top:5px;"><span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 PROOF: FAKE (AI-Generated)${issue.completion_ai_confidence ? ' ' + issue.completion_ai_confidence.toFixed(1) + '%' : ''}</span></div>`
+            : `<div style="margin-top:5px;"><span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 PROOF: REAL${issue.completion_ai_confidence ? ' ' + issue.completion_ai_confidence.toFixed(1) + '%' : ''}</span></div>`)
+        : '';
       proofHTML = `
         <div class="resolution-proof-container">
           <div style="font-size: 0.8rem; font-weight: 600; color: var(--success); margin-bottom: 4px;">${proofLabelText}</div>
           <img src="${issue.completion_proof_url}" class="resolution-proof-inline" onclick="window.open('${issue.completion_proof_url}', '_blank')" alt="Resolution Proof">
+          ${proofAiBadge}
         </div>
       `;
     }
@@ -113,6 +119,11 @@ function renderIssues(issues) {
     // Rejection details
     let rejectionHTML = '';
     if (issue.status === 'rejected' && issue.rejection_reason) {
+      const rejAiBadge = issue.rejection_ai_prediction
+        ? (issue.rejection_ai_prediction === 'Fake'
+            ? `<div style="margin-top:5px;"><span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 REJECTION EVIDENCE: FAKE (AI-Generated)${issue.rejection_ai_confidence ? ' ' + issue.rejection_ai_confidence.toFixed(1) + '%' : ''}</span></div>`
+            : `<div style="margin-top:5px;"><span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 REJECTION EVIDENCE: REAL${issue.rejection_ai_confidence ? ' ' + issue.rejection_ai_confidence.toFixed(1) + '%' : ''}</span></div>`)
+        : '';
       rejectionHTML = `
         <div class="rejection-stamp-container" style="margin-top: 12px; width: 100%;">
           <div class="rejection-stamp">REJECTED</div>
@@ -124,6 +135,7 @@ function renderIssues(issues) {
               <div class="rejection-evidence">
                 <strong>Evidence:</strong>
                 <img src="${issue.rejection_proof_url}" class="rejection-proof-inline" onclick="window.open('${issue.rejection_proof_url}', '_blank')" alt="Rejection Evidence" style="max-height: 120px;">
+                ${rejAiBadge}
               </div>
             ` : ''}
             <div class="rejection-official">
@@ -156,12 +168,24 @@ function renderIssues(issues) {
       `;
     }
 
+    let aiBadgeHTML = '';
+    if (issue.ai_prediction) {
+      const isFake = issue.ai_prediction === 'Fake';
+      const badgeStyle = isFake 
+        ? 'background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4);'
+        : 'background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4);';
+      const badgeIcon = isFake ? '🔴' : '🟢';
+      const confText = issue.ai_confidence ? ` ${issue.ai_confidence.toFixed(1)}%` : '';
+      aiBadgeHTML = `<span class="badge" style="${badgeStyle}" title="AI ResNet50 Inspection">${badgeIcon} ${issue.ai_prediction.toUpperCase()}${confText}</span>`;
+    }
+
     return `
       <div class="issue-card ${issue.status}">
         <div class="issue-header">
           <div>
             <span class="badge badge-${issue.status}">${statusText}</span>
             <span class="badge badge-priority-${issue.priority}">${priorityText}</span>
+            ${aiBadgeHTML}
             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
               Category: <strong>${window.i18n ? window.i18n.t(issue.category, issue.category) : issue.category}</strong>
             </div>
@@ -191,7 +215,15 @@ function renderIssues(issues) {
         <!-- Actions footer -->
         <div class="issue-footer" style="flex-direction: column; align-items: flex-start; gap: 12px;">
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-            <button onclick="trackStatus('${issue.id}', '${issue.created_at}')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Track Status</button>
+            <button
+              onclick="trackStatus('${issue.id}', '${issue.created_at}', this)"
+              class="btn btn-secondary"
+              style="padding: 6px 12px; font-size: 0.8rem;"
+              data-rej-ai-pred="${issue.rejection_ai_prediction || ''}"
+              data-rej-ai-conf="${issue.rejection_ai_confidence || ''}"
+              data-comp-ai-pred="${issue.completion_ai_prediction || ''}"
+              data-comp-ai-conf="${issue.completion_ai_confidence || ''}"
+            >Track Status</button>
           </div>
           
           ${voteSectionHTML}
@@ -227,11 +259,19 @@ async function castVote(issueId, voteType) {
 }
 
 // Track Status Trail timeline
-async function trackStatus(issueId, createdAt) {
+async function trackStatus(issueId, createdAt, triggerBtn) {
   const modal = document.getElementById('trail-modal');
   const stepper = document.getElementById('trail-stepper');
   
   if (!modal || !stepper) return;
+  
+  // Read AI data passed from card button
+  const aiData = triggerBtn ? {
+    rejection_ai_prediction: triggerBtn.dataset.rejAiPred || null,
+    rejection_ai_confidence: triggerBtn.dataset.rejAiConf ? parseFloat(triggerBtn.dataset.rejAiConf) : null,
+    completion_ai_prediction: triggerBtn.dataset.compAiPred || null,
+    completion_ai_confidence: triggerBtn.dataset.compAiConf ? parseFloat(triggerBtn.dataset.compAiConf) : null,
+  } : {};
   
   modal.style.display = 'flex';
   stepper.innerHTML = `
@@ -309,6 +349,7 @@ async function trackStatus(issueId, createdAt) {
                   ${rejectedByContact ? `<strong>Contact:</strong> ${escapeHtml(rejectedByContact)}` : ''}
                 </div>
                 ${rejectedProofUrl ? `<p style="margin-top:8px;"><a href="${rejectedProofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;border-color:rgba(239,68,68,0.3);color:#ef4444;">View Rejection Evidence</a></p>` : ''}
+                ${aiData.rejection_ai_prediction ? `<div style="margin-top:6px;">${aiData.rejection_ai_prediction === 'Fake' ? '<span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 REJECTION EVIDENCE: FAKE (AI-Generated)' + (aiData.rejection_ai_confidence ? ' ' + aiData.rejection_ai_confidence.toFixed(1) + '%' : '') + '</span>' : '<span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 REJECTION EVIDENCE: REAL' + (aiData.rejection_ai_confidence ? ' ' + aiData.rejection_ai_confidence.toFixed(1) + '%' : '') + '</span>'}</div>` : ''}
                 <span class="step-time" style="color: #ef4444;">${rejectedTime}</span>
               </div>
             </div>
@@ -363,6 +404,7 @@ async function trackStatus(issueId, createdAt) {
                 <h4 class="step-title">Completed & Resolved</h4>
                 <p class="step-desc">${resolvedTime ? resolvedComments : 'Awaiting final verification proof.'}</p>
                 ${proofUrl ? `<p style="margin-top:8px;"><a href="${proofUrl}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;display:inline-block;">View Resolution Proof</a></p>` : ''}
+                ${aiData.completion_ai_prediction ? `<div style="margin-top:6px;">${aiData.completion_ai_prediction === 'Fake' ? '<span style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🔴 RESOLUTION PROOF: FAKE (AI-Generated)' + (aiData.completion_ai_confidence ? ' ' + aiData.completion_ai_confidence.toFixed(1) + '%' : '') + '</span>' : '<span style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:2px 8px;font-size:0.75rem;">🟢 RESOLUTION PROOF: REAL' + (aiData.completion_ai_confidence ? ' ' + aiData.completion_ai_confidence.toFixed(1) + '%' : '') + '</span>'}</div>` : ''}
                 ${resolvedTime ? `<span class="step-time">${resolvedTime}</span>` : ''}
               </div>
             </div>

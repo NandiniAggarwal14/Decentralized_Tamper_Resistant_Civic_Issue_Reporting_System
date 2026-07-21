@@ -33,3 +33,9 @@ async def authority_page() -> FileResponse:
 @router.get("/admin.html")
 async def admin_page() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "admin.html")
+
+@router.get("/ai")
+@router.get("/ai.html")
+async def ai_page() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "ai.html")
+
