@@ -1,10 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Core Web Framework
+# Core Web Framework & APIs
 # ─────────────────────────────────────────────────────────────────────────────
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 starlette==0.38.6
+pydantic>=2.0.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Database (Neon PostgreSQL via psycopg2)
@@ -22,15 +23,21 @@ python-dotenv==1.0.1
 web3==7.3.0
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Authentication & Cryptography
+# AI / Deep Learning Image Authenticity Classifier
 # ─────────────────────────────────────────────────────────────────────────────
-## passlib and bcrypt removed — passwords are stored as plaintext for this demo.
-# passlib[bcrypt]==1.7.4
-# bcrypt==3.2.2
-python-jose[cryptography]==3.3.0
+torch
+torchvision
+pillow
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HTTP Client (used internally by FastAPI testing)
+# Authentication & Cryptography
+# ─────────────────────────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HTTP Client & Internal Utilities
 # ─────────────────────────────────────────────────────────────────────────────
 httpx==0.28.1
 
