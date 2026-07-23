@@ -57,7 +57,7 @@
         </div>
 
         <div class="card">
-          <form id="form-report" onsubmit="submitReportForm(event)">
+          <form id="form-report" onsubmit="checkDuplicatesAndSubmit(event)">
             
             <div class="form-group">
               <label for="complaint-title" data-i18n="issue_title">Issue Title</label>
@@ -170,6 +170,20 @@
       </div>
     </main>
 
+  <!-- Duplicate Check Modal -->
+  <div class="modal-overlay" id="duplicate-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="card" style="max-width: 600px; width: 90%; max-height: 85%; overflow-y: auto; padding: 24px; position: relative; border: 1px solid var(--border);">
+      <span onclick="closeDuplicateModal()" style="position: absolute; top: 16px; right: 16px; cursor: pointer; font-size: 1.5rem; color: var(--text-muted);">&times;</span>
+      <h3 style="margin-bottom: 12px; color: var(--warning); border-bottom: 1px solid var(--border); padding-bottom: 8px;">⚠️ Similar Issues Found Nearby</h3>
+      <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">We found existing reports matching your location and description. Consider upvoting an existing issue instead of creating a duplicate.</p>
+      
+      <div id="duplicate-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;"></div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button onclick="closeDuplicateModal()" class="btn btn-secondary">Cancel</button>
+        <button onclick="submitReportAnyway()" class="btn btn-warning">Submit Anyway</button>
+      </div>
+    </div>
   </div>
 
   <script src="/assets/i18n.js"></script>
@@ -177,3 +191,4 @@
   <script src="/assets/report.js"></script>
 </body>
 </html>
+

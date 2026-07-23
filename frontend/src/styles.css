@@ -1224,10 +1224,215 @@ dialog::backdrop {
   cursor: pointer;
 }
 
+  border-bottom: none;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.approved {
+  background: var(--success-glow);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-badge.pending {
+  background: var(--warning-glow);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-badge.rejected {
+  background: var(--danger-glow);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* --- Stepper Timeline (E-commerce Style) --- */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-left: 10px;
+  margin-top: 10px;
+}
+
+.step {
+  display: flex;
+  position: relative;
+  padding-bottom: 32px;
+  gap: 16px;
+}
+
+.step:last-child {
+  padding-bottom: 0;
+}
+
+.step-line {
+  position: absolute;
+  left: 15px;
+  top: 30px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.step:last-child .step-line {
+  display: none;
+}
+
+.step.completed .step-line {
+  background: var(--success);
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  z-index: 2;
+  transition: all var(--transition-normal);
+}
+
+.step.completed .step-icon {
+  background: var(--success-glow);
+  border-color: var(--success);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.step.active .step-icon {
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.step-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.step.completed .step-title {
+  color: #fff;
+}
+
+.step.active .step-title {
+  color: var(--primary);
+}
+
+.step-desc {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.step-time {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Rejection stamp overlay */
+.rejection-stamp-container {
+  margin: 16px 0;
+  padding: 16px;
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.06);
+  position: relative;
+}
+
+.rejection-stamp {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: rgba(239, 68, 68, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  transform: rotate(-4deg);
+  border: 4px solid rgba(239, 68, 68, 0.5);
+  padding: 4px 20px;
+  display: inline-block;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.rejection-details {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.rejection-reason {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.rejection-evidence {
+  margin-bottom: 8px;
+}
+
+.rejection-proof-inline {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: block;
+}
+
+.rejection-official {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- AI Verification Module Styles --- */
+.ai-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
 .ai-dropzone:hover, .ai-dropzone.highlight {
   border-color: var(--primary);
   background: var(--primary-glow);
 }
 
+/* --- Leaflet Realistic Theme Styling --- */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important;
+}
 
-
+.leaflet-container {
+  font-family: inherit !important;
+  background: #e2e8f0 !important;
+}

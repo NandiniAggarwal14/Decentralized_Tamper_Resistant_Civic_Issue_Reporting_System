@@ -256,6 +256,8 @@ async def redirect_issue(
 async def reject_issue(
     issue_id: str,
     reason: str = Form(...),
+    rejection_type: str = Form("fake"),
+    primary_issue_id: Optional[str] = Form(None),
     evidence: UploadFile = File(...),
     current_user: UserResponse = Depends(RoleChecker(["ward_member"]))
 ) -> dict:
@@ -284,6 +286,13 @@ async def reject_issue(
                 
                 old_status = issue["status"]
 
+                if rejection_type == "duplicate":
+                    if not primary_issue_id:
+                        raise HTTPException(status_code=400, detail="Primary issue ID is required when marking as duplicate")
+                    cursor.execute("SELECT id FROM issues WHERE id = %s", (primary_issue_id,))
+                    if not cursor.fetchone():
+                        raise HTTPException(status_code=404, detail="Primary issue for duplicate not found")
+
         # 2. Save evidence file to local uploads and IPFS
         rejection_ai_prediction = None
         rejection_ai_confidence = None
@@ -304,13 +313,17 @@ async def reject_issue(
         evidence_cid = evidence_info["cid"]
         evidence_url = evidence_info["url"]
 
+        formatted_reason = f"[{rejection_type.upper()}] {reason}"
+
         # 3. Compile rejection metadata and save to IPFS
         rejection_data = {
             "issue_id": issue_id,
+            "rejection_type": rejection_type,
+            "primary_issue_id": primary_issue_id,
             "rejected_by": str(current_user.id),
             "rejected_by_name": current_user.full_name,
             "rejected_by_contact": current_user.contact or "",
-            "reason": reason,
+            "reason": formatted_reason,
             "evidence": evidence_info,
             "rejected_at": datetime.now(timezone.utc).isoformat(),
             "ai_prediction": rejection_ai_prediction,
@@ -330,7 +343,7 @@ async def reject_issue(
             "new_status": "rejected",
             "changed_by": str(current_user.id),
             "changed_by_name": current_user.full_name,
-            "comments": reason,
+            "comments": formatted_reason,
             "proof_url": evidence_url,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
@@ -344,7 +357,31 @@ async def reject_issue(
         # 6. Update Database
         with get_connection() as conn:
             with conn.cursor() as cursor:
-                # 6a. Delete existing votes for this issue
+                # Handle vote merging if duplicate
+                if rejection_type == "duplicate" and primary_issue_id:
+                    # Transfer unique votes to primary issue
+                    cursor.execute(
+                        """
+                        INSERT INTO issue_votes (issue_id, voter_id, vote_type)
+                        SELECT %s, voter_id, vote_type
+                        FROM issue_votes
+                        WHERE issue_id = %s
+                        ON CONFLICT (issue_id, voter_id) DO NOTHING
+                        """,
+                        (primary_issue_id, issue_id)
+                    )
+                    # Recalculate upvote and downvote counts on primary issue
+                    cursor.execute(
+                        """
+                        UPDATE issues
+                        SET upvote_count = (SELECT COUNT(*) FROM issue_votes WHERE issue_id = %s AND vote_type = 'up'),
+                            downvote_count = (SELECT COUNT(*) FROM issue_votes WHERE issue_id = %s AND vote_type = 'down')
+                        WHERE id = %s
+                        """,
+                        (primary_issue_id, primary_issue_id, primary_issue_id)
+                    )
+
+                # 6a. Delete existing votes for this rejected issue
                 cursor.execute(
                     "DELETE FROM issue_votes WHERE issue_id = %s",
                     (issue_id,)
@@ -359,13 +396,14 @@ async def reject_issue(
                         rejection_proof_url = %s,
                         rejection_proof_ipfs_cid = %s,
                         rejected_by = %s,
+                        duplicate_of = %s,
                         rejection_ai_prediction = %s,
                         rejection_ai_confidence = %s,
                         upvote_count = 0,
                         downvote_count = 0
                     WHERE id = %s
                     """,
-                    (reason, evidence_url, evidence_cid, current_user.id, rejection_ai_prediction, rejection_ai_confidence, issue_id)
+                    (formatted_reason, evidence_url, evidence_cid, current_user.id, primary_issue_id if rejection_type == "duplicate" else None, rejection_ai_prediction, rejection_ai_confidence, issue_id)
                 )
 
                 # 6c. Insert history record
@@ -374,13 +412,13 @@ async def reject_issue(
                     INSERT INTO issue_status_history (id, issue_id, old_status, new_status, changed_by, comments, proof_url, ipfs_cid, blockchain_hash)
                     VALUES (%s, %s, %s, 'rejected', %s, %s, %s, %s, %s)
                     """,
-                    (history_id, issue_id, old_status, current_user.id, reason, evidence_url, status_ipfs_cid, status_blockchain_hash)
+                    (history_id, issue_id, old_status, current_user.id, formatted_reason, evidence_url, status_ipfs_cid, status_blockchain_hash)
                 )
             conn.commit()
 
         return {
             "success": True,
-            "message": "Issue rejected successfully and anchored on blockchain",
+            "message": f"Issue rejected as {rejection_type.upper()} and anchored on blockchain",
             "tx_hash": status_tx_hash,
             "ipfs_cid": status_ipfs_cid,
             "blockchain_hash": status_blockchain_hash

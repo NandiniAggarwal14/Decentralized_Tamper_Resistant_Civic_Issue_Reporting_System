@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
 
 from backend.app.database import get_connection
 from backend.app.auth import get_current_user, get_optional_current_user, UserResponse
-from backend.app.models import VoteRequest
+from backend.app.models import VoteRequest, DuplicateCheckRequest
 from backend.app.config import SUBMISSION_COOLDOWN, VOTE_COOLDOWN
 from backend.app.helpers import (
     _validate_coordinates,
@@ -67,6 +67,20 @@ async def get_issues(
         return {"success": True, "count": len(items), "data": items}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch issues: {exc}") from exc
+
+@router.post("/issues/check-duplicates")
+async def check_duplicate_issues(
+    req: DuplicateCheckRequest,
+    current_user: UserResponse = Depends(get_current_user)
+) -> dict:
+    from backend.app.nlp.duplicate_detector import find_duplicates
+    duplicates = find_duplicates(
+        title=req.title.strip(),
+        description=req.description.strip(),
+        latitude=req.latitude,
+        longitude=req.longitude
+    )
+    return {"success": True, "count": len(duplicates), "duplicates": duplicates}
 
 @router.post("/issues")
 async def create_issue(

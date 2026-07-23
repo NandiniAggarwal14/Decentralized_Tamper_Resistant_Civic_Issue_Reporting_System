@@ -188,10 +188,106 @@ function stopVideoRecording() {
   }
 }
 
-// --- Form Submissions ---
-async function submitReportForm(e) {
-  e.preventDefault();
+// --- Form Submissions & Duplicate Check ---
+let pendingFormData = null;
+
+async function checkDuplicatesAndSubmit(e) {
+  if (e) e.preventDefault();
   
+  const title = document.getElementById('complaint-title').value.trim();
+  const description = document.getElementById('complaint-desc').value.trim();
+  let latitude = parseFloat(document.getElementById('complaint-lat').value);
+  let longitude = parseFloat(document.getElementById('complaint-lng').value);
+
+  if (isNaN(latitude) || isNaN(longitude)) {
+    latitude = 28.6315;
+    longitude = 77.2167;
+  }
+
+  const submitBtn = document.getElementById('btn-submit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Checking for duplicate complaints...';
+
+  try {
+    console.log('Sending duplicate check request for:', { title, description, latitude, longitude });
+    const checkRes = await fetch('/api/issues/check-duplicates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ title, description, latitude, longitude })
+    });
+    
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      console.log('Duplicate check response:', checkData);
+      if (checkData.success && checkData.duplicates && checkData.duplicates.length > 0) {
+        renderDuplicateList(checkData.duplicates);
+        document.getElementById('duplicate-modal').style.display = 'flex';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload to IPFS & Submit to Blockchain';
+        return;
+      }
+    } else {
+      console.warn('Duplicate check endpoint returned non-OK status:', checkRes.status);
+    }
+  } catch (err) {
+    console.warn('Duplicate check failed, proceeding with direct submission:', err);
+  }
+
+  await executeReportSubmit();
+}
+
+
+function renderDuplicateList(duplicates) {
+  const container = document.getElementById('duplicate-list');
+  container.innerHTML = duplicates.map(dup => `
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+        <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(dup.title)}</span>
+        <span class="badge badge-warning">${dup.similarity_score}% Match (${dup.distance_meters}m away)</span>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 10px;">${escapeHtml(dup.description)}</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Current Upvotes: ${dup.upvotes}</span>
+        <button onclick="upvoteExistingDuplicate('${dup.id}')" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.8rem;">👍 Upvote Existing Issue</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function closeDuplicateModal() {
+  document.getElementById('duplicate-modal').style.display = 'none';
+}
+
+async function upvoteExistingDuplicate(issueId) {
+  try {
+    const res = await fetch(`/api/issues/${issueId}/vote`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ vote_type: 'up' })
+    });
+    if (res.ok) {
+      showAlert('Upvoted existing report! Redirecting to public feed...', false);
+      setTimeout(() => { window.location.href = '/citizen.html'; }, 1500);
+    } else {
+      showAlert('Failed to vote on existing issue.', true);
+    }
+  } catch (err) {
+    showAlert('Network error while voting on existing issue.', true);
+  }
+}
+
+async function submitReportAnyway() {
+  closeDuplicateModal();
+  await executeReportSubmit();
+}
+
+async function executeReportSubmit() {
   const submitBtn = document.getElementById('btn-submit');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Processing IPFS upload & transaction signing...';
@@ -214,14 +310,12 @@ async function submitReportForm(e) {
 
   if (imgInput) formData.append('image', imgInput);
   
-  // Attach captured audio blob or fallback file input
   if (recordedAudioBlob) {
     formData.append('audio', recordedAudioBlob, 'captured_audio.webm');
   } else if (audInput) {
     formData.append('audio', audInput);
   }
 
-  // Attach captured video blob or fallback file input
   if (recordedVideoBlob) {
     formData.append('video', recordedVideoBlob, 'captured_video.webm');
   } else if (vidInput) {
@@ -253,5 +347,26 @@ async function submitReportForm(e) {
   }
 }
 
-// Startup
-window.addEventListener('load', initializeReport);
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, match => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[match]));
+}
+
+// Export functions to window scope
+window.checkDuplicatesAndSubmit = checkDuplicatesAndSubmit;
+window.submitReportForm = checkDuplicatesAndSubmit;
+window.closeDuplicateModal = closeDuplicateModal;
+window.upvoteExistingDuplicate = upvoteExistingDuplicate;
+window.submitReportAnyway = submitReportAnyway;
+
+// Bind form submit listener
+window.addEventListener('load', () => {
+  initializeReport();
+  const form = document.getElementById('form-report') || document.getElementById('report-form');
+  if (form) {
+    form.addEventListener('submit', checkDuplicatesAndSubmit);
+  }
+});
+

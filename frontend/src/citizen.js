@@ -35,6 +35,93 @@ function showAlert(text, isError = false) {
   }
 }
 
+let allCitizenIssues = [];
+let citizenMap = null;
+let citizenMapMarkers = [];
+
+function toggleMap() {
+  const container = document.getElementById('issue-map-container') || document.getElementById('issue-map');
+  const iframe = document.getElementById('issue-map-iframe');
+
+  if (!container) return;
+
+  if (container.style.display === 'none' || !container.style.display) {
+    if (iframe && iframe.getAttribute('src') !== '/api/maps/issues') {
+      iframe.src = '/api/maps/issues';
+    }
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+
+
+function initCitizenMap() {
+  const mapEl = document.getElementById('issue-map');
+  if (!mapEl) return;
+
+  citizenMap = L.map('issue-map').setView([28.6315, 77.2167], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(citizenMap);
+
+
+  if (allCitizenIssues && allCitizenIssues.length > 0) {
+    renderCitizenMapPins(allCitizenIssues);
+  }
+}
+
+function renderCitizenMapPins(issues) {
+  if (!citizenMap) return;
+  citizenMapMarkers.forEach(m => citizenMap.removeLayer(m));
+  citizenMapMarkers = [];
+
+  const statusColors = {
+    pending: '#f59e0b',
+    in_progress: '#3b82f6',
+    resolved: '#10b981',
+    rejected: '#ef4444'
+  };
+
+  const bounds = [];
+  issues.forEach(issue => {
+    if (issue.location && issue.location.latitude && issue.location.longitude) {
+      const lat = issue.location.latitude;
+      const lng = issue.location.longitude;
+      bounds.push([lat, lng]);
+
+      const color = statusColors[issue.status] || '#3b82f6';
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: color,
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.85
+      }).addTo(citizenMap);
+
+      const popupHTML = `
+        <div style="font-family: inherit; font-size: 0.85rem; color: #fff;">
+          <div style="font-weight: 700; margin-bottom: 4px;">${escapeHtml(issue.title)}</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px;">Category: ${escapeHtml(issue.category)}</div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="badge badge-${issue.status}" style="font-size: 0.7rem;">${issue.status}</span>
+            <span style="font-size: 0.75rem; color: #cbd5e1;">👍 ${issue.votes ? issue.votes.upvotes : 0}</span>
+          </div>
+        </div>
+      `;
+      marker.bindPopup(popupHTML);
+      citizenMapMarkers.push(marker);
+    }
+  });
+
+  if (bounds.length > 0) {
+    citizenMap.fitBounds(bounds, { padding: [30, 30] });
+  }
+}
+
 // Fetch and render issues list
 async function loadIssues() {
   try {
@@ -44,7 +131,11 @@ async function loadIssues() {
     const data = await res.json();
     
     if (res.ok && data.success) {
-      renderIssues(data.data);
+      allCitizenIssues = data.data;
+      renderIssues(allCitizenIssues);
+      if (citizenMap) {
+        renderCitizenMapPins(allCitizenIssues);
+      }
     } else {
       feedContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 40px;">Failed to load complaints feed.</p>`;
     }
@@ -56,6 +147,7 @@ async function loadIssues() {
 
 // Render Issues Grid
 function renderIssues(issues) {
+
   if (!issues || issues.length === 0) {
     feedContainer.innerHTML = `
       <div style="text-align: center; color: var(--text-muted); padding: 60px;">
@@ -440,5 +532,8 @@ function escapeHtml(value) {
 
 // Run Startup
 window.addEventListener('load', initializeDashboard);
+// Redraw translations on lang change
+window.addEventListener('languageChanged', loadIssues);
+window.toggleMap = toggleMap;
 // Redraw translations on lang change
 window.addEventListener('languageChanged', loadIssues);

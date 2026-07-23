@@ -1,0 +1,6 @@
+title: Broken streetlight on MG Road near Central Park
+description: The streetlight pole near Central Park on MG Road has been non-functional for the past 2 weeks. The area becomes very dark at night making it unsafe for pedestrians. The electrical wiring appears damaged.
+category: Electricity & Lighting
+area: Connaught Place
+latitude: 28.6316
+longitude: 77.2168

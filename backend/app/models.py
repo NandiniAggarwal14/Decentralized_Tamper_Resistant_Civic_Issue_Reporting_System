@@ -32,6 +32,12 @@ class ProfileUpdateRequest(BaseModel):
     contact: Optional[str] = None
     designation: Optional[str] = None
 
+class DuplicateCheckRequest(BaseModel):
+    title: str
+    description: str
+    latitude: float
+    longitude: float
+
 # Admin management models
 class CreateWardRequest(BaseModel):
     name: str

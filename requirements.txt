@@ -28,6 +28,10 @@ web3==7.3.0
 torch
 torchvision
 pillow
+transformers
+sentence-transformers
+folium
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Authentication & Cryptography

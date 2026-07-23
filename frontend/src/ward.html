@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="ward_panel">Ward Member Dashboard</title>
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <div class="dashboard-layout">
@@ -58,12 +60,21 @@
             <div>
               <h2 data-i18n="ward_member_title">Assigned Ward Complaints</h2>
               <p id="ward-subtitle" style="font-size: 0.9rem; color: var(--text-secondary);">Review local area submissions, set resolution priority, and map departments</p>
+            <div style="display: flex; gap: 8px;">
+              <button onclick="toggleMap()" class="btn btn-secondary" style="padding: 8px 16px;">🗺️ Toggle Map</button>
+              <button onclick="loadWardIssues()" class="btn btn-secondary" style="padding: 8px 16px;" data-i18n="refresh">Refresh</button>
             </div>
-            <button onclick="loadWardIssues()" class="btn btn-secondary" style="padding: 8px 16px;" data-i18n="refresh">Refresh</button>
           </div>
+
+          <!-- Interactive Folium OpenStreetMap -->
+          <div id="issue-map-container" style="height: 420px; width: 100%; border-radius: 12px; margin-bottom: 24px; display: none; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+            <iframe id="issue-map-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+          </div>
+
 
           <!-- List of Issues -->
           <div id="ward-issues-container" class="feed-grid">
+
             <p style="text-align: center; color: var(--text-secondary); padding: 40px;" data-i18n="loading_reports">Loading ward complaints queue...</p>
           </div>
         </div>
@@ -140,8 +151,23 @@
         <input type="hidden" id="reject-issue-id">
         
         <div style="margin-bottom: 16px;">
-          <label for="reject-reason" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Reason for Rejection *</label>
-          <textarea id="reject-reason" required placeholder="Describe why this issue is being rejected..." style="width: 100%; min-height: 100px; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; resize: vertical; outline: none;"></textarea>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Rejection Type *</label>
+          <select id="reject-type" onchange="toggleDuplicateSelect()" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; outline: none;">
+            <option value="fake">Fake / Invalid Complaint</option>
+            <option value="duplicate">Duplicate Complaint</option>
+          </select>
+        </div>
+
+        <div id="primary-issue-container" style="margin-bottom: 16px; display: none;">
+          <label for="primary-issue-select" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Primary Issue to Merge Votes Into *</label>
+          <select id="primary-issue-select" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; outline: none;">
+            <!-- Options populated dynamically -->
+          </select>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <label for="reject-reason" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">Reason / Comments *</label>
+          <textarea id="reject-reason" required placeholder="Describe why this issue is being rejected..." style="width: 100%; min-height: 80px; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff; resize: vertical; outline: none;"></textarea>
         </div>
         
         <div style="margin-bottom: 24px;">
@@ -154,6 +180,7 @@
           <button type="submit" class="btn btn-danger" style="padding: 10px 20px; background: #ef4444; border-color: #ef4444;">Reject Issue</button>
         </div>
       </form>
+
     </div>
   </div>
 

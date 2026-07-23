@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app_instance):
-    # ── Startup: warm up DB connection pool and load AI model ──
+    # ── Startup: warm up DB connection pool, load AI model & NLP duplicate detector ──
     import asyncio
     try:
         await asyncio.get_event_loop().run_in_executor(None, db_warmup)
@@ -29,9 +29,16 @@ async def lifespan(app_instance):
     try:
         from backend.app.ai.model import load_model
         await asyncio.get_event_loop().run_in_executor(None, load_model)
-        logging.info("AI model loaded on startup.")
+        logging.info("EfficientNetB7 AI model loaded on startup.")
     except Exception as exc:
         logging.warning("AI model loading on startup failed (non-fatal): %s", exc)
+
+    try:
+        from backend.app.nlp.duplicate_detector import get_sentence_model
+        await asyncio.get_event_loop().run_in_executor(None, get_sentence_model)
+        logging.info("NLP Sentence Transformer model loaded on startup.")
+    except Exception as exc:
+        logging.warning("NLP model loading on startup failed (non-fatal): %s", exc)
 
     yield
     # ── Shutdown: nothing extra needed ──
@@ -50,9 +57,10 @@ app.add_middleware(
 async def add_security_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
+
 
 # Mount static directories
 app.mount("/assets", StaticFiles(directory=FRONTEND_DIR), name="assets")
@@ -66,6 +74,7 @@ from backend.app.routes.authority import router as authority_router
 from backend.app.routes.admin import router as admin_router
 from backend.app.routes.pages import router as pages_router
 from backend.app.routes.ai import router as ai_router
+from backend.app.routes.maps import router as maps_router
 
 app.include_router(auth_router)
 app.include_router(issues_router)
@@ -73,10 +82,12 @@ app.include_router(ward_router)
 app.include_router(authority_router)
 app.include_router(admin_router)
 app.include_router(pages_router)
+app.include_router(maps_router)
 
 # Mount AI router under both /api and /api/ai for flexibility
 app.include_router(ai_router, prefix="/api")
 app.include_router(ai_router, prefix="/api/ai")
+
 
 
 # General /api/health endpoint

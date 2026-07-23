@@ -450,12 +450,121 @@ async function updateProfile(event) {
   }
 }
 
+// Leaflet Map Integration
+let wardMap = null;
+let mapMarkers = [];
+
+function toggleMap() {
+  const container = document.getElementById('issue-map-container') || document.getElementById('issue-map');
+  const iframe = document.getElementById('issue-map-iframe');
+
+  if (!container) return;
+
+  if (container.style.display === 'none' || !container.style.display) {
+    const wardIdParam = currentUser && currentUser.ward_id ? `?ward_id=${currentUser.ward_id}` : '';
+    const targetSrc = `/api/maps/issues${wardIdParam}`;
+    if (iframe && iframe.getAttribute('src') !== targetSrc) {
+      iframe.src = targetSrc;
+    }
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+
+
+function initMap() {
+  const mapEl = document.getElementById('issue-map');
+  if (!mapEl) return;
+
+  wardMap = L.map('issue-map').setView([28.6315, 77.2167], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(wardMap);
+
+
+  if (allWardIssues && allWardIssues.length > 0) {
+    renderMapPins(allWardIssues);
+  }
+}
+
+function renderMapPins(issues) {
+  if (!wardMap) return;
+  mapMarkers.forEach(m => wardMap.removeLayer(m));
+  mapMarkers = [];
+
+  const statusColors = {
+    pending: '#f59e0b',
+    in_progress: '#3b82f6',
+    resolved: '#10b981',
+    rejected: '#ef4444'
+  };
+
+  const bounds = [];
+  issues.forEach(issue => {
+    if (issue.location && issue.location.latitude && issue.location.longitude) {
+      const lat = issue.location.latitude;
+      const lng = issue.location.longitude;
+      bounds.push([lat, lng]);
+
+      const color = statusColors[issue.status] || '#3b82f6';
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: color,
+        color: '#ffffff',
+        weight: 1.5,
+        opacity: 1,
+        fillOpacity: 0.85
+      }).addTo(wardMap);
+
+      const popupHTML = `
+        <div style="font-family: inherit; font-size: 0.85rem; color: #fff;">
+          <div style="font-weight: 700; margin-bottom: 4px;">${escapeHtml(issue.title)}</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px;">Category: ${escapeHtml(issue.category)}</div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="badge badge-${issue.status}" style="font-size: 0.7rem;">${issue.status}</span>
+            <span style="font-size: 0.75rem; color: #cbd5e1;">👍 ${issue.votes ? issue.votes.upvotes : 0}</span>
+          </div>
+        </div>
+      `;
+      marker.bindPopup(popupHTML);
+      mapMarkers.push(marker);
+    }
+  });
+
+  if (bounds.length > 0) {
+    wardMap.fitBounds(bounds, { padding: [30, 30] });
+  }
+}
+
 // Reject Modal logic
 function openRejectModal(issueId) {
   document.getElementById('reject-issue-id').value = issueId;
   document.getElementById('reject-reason').value = '';
   document.getElementById('reject-evidence').value = '';
+  document.getElementById('reject-type').value = 'fake';
+  toggleDuplicateSelect();
+
+  // Populate primary issue options for duplicate selection
+  const primarySelect = document.getElementById('primary-issue-select');
+  const validPrimaryIssues = (allWardIssues || []).filter(i => i.id !== issueId && i.status !== 'rejected');
+  primarySelect.innerHTML = validPrimaryIssues.map(i => `
+    <option value="${i.id}">[${i.status.toUpperCase()}] ${escapeHtml(i.title)} (👍 ${i.votes ? i.votes.upvotes : 0})</option>
+  `).join('');
+
   document.getElementById('reject-modal').style.display = 'flex';
+}
+
+function toggleDuplicateSelect() {
+  const type = document.getElementById('reject-type').value;
+  const container = document.getElementById('primary-issue-container');
+  if (type === 'duplicate') {
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+  }
 }
 
 function closeRejectModal() {
@@ -467,9 +576,16 @@ async function submitRejection(event) {
   const issueId = document.getElementById('reject-issue-id').value;
   const reason = document.getElementById('reject-reason').value.trim();
   const evidenceFile = document.getElementById('reject-evidence').files[0];
+  const rejectionType = document.getElementById('reject-type').value;
+  const primaryIssueId = document.getElementById('primary-issue-select').value;
 
   if (!reason || !evidenceFile) {
     showAlert('Please fill in all fields.', true);
+    return;
+  }
+
+  if (rejectionType === 'duplicate' && !primaryIssueId) {
+    showAlert('Please select a primary issue to merge votes into.', true);
     return;
   }
 
@@ -480,6 +596,10 @@ async function submitRejection(event) {
   const formData = new FormData();
   formData.append('reason', reason);
   formData.append('evidence', evidenceFile);
+  formData.append('rejection_type', rejectionType);
+  if (rejectionType === 'duplicate') {
+    formData.append('primary_issue_id', primaryIssueId);
+  }
 
   try {
     const res = await fetch(`/api/ward/issues/${issueId}/reject`, {
@@ -492,7 +612,7 @@ async function submitRejection(event) {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      showAlert('Complaint rejected successfully and anchored to blockchain.', false);
+      showAlert(data.message || 'Complaint rejected successfully and anchored to blockchain.', false);
       closeRejectModal();
       await loadWardIssues();
       await loadStats();
@@ -527,4 +647,6 @@ window.switchTab = switchTab;
 window.openRejectModal = openRejectModal;
 window.closeRejectModal = closeRejectModal;
 window.submitRejection = submitRejection;
+window.toggleDuplicateSelect = toggleDuplicateSelect;
+window.toggleMap = toggleMap;
 

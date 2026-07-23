@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="public_feed">Public Civic Feed — Citizen Dashboard</title>
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <div class="dashboard-layout">
@@ -52,16 +54,26 @@
             <h2 data-i18n="public_feed">Public Civic Feed</h2>
             <p style="font-size: 0.9rem; color: var(--text-secondary);">Browse, vote, and verify real-time local reports on-chain</p>
           </div>
-          <button onclick="loadIssues()" class="btn btn-secondary" style="padding: 8px 16px;" data-i18n="refresh">Refresh</button>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="toggleMap()" class="btn btn-secondary" style="padding: 8px 16px;">🗺️ Toggle Map</button>
+            <button onclick="loadIssues()" class="btn btn-secondary" style="padding: 8px 16px;" data-i18n="refresh">Refresh</button>
+          </div>
         </div>
 
         <!-- Notification Banner -->
-        <div id="alert-banner" class="alert-banner alert-success" style="display: none;">
+        <div id="alert-banner" class="alert-banner alert-success" style="display: none; margin-bottom: 16px;">
           <span id="alert-text">Status update message</span>
         </div>
 
+        <!-- Interactive Folium OpenStreetMap -->
+        <div id="issue-map-container" style="height: 420px; width: 100%; border-radius: 12px; margin-bottom: 24px; display: none; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+          <iframe id="issue-map-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+
+
         <!-- List of Issues -->
         <div id="feed-container" class="feed-grid">
+
           <p style="text-align: center; color: var(--text-secondary); padding: 40px;" data-i18n="loading_reports">Loading civic reports...</p>
         </div>
 
