@@ -624,3 +624,89 @@ This is useful when HuggingFace model caches accumulate significant disk space (
    ```
 
 > **Note**: The `ipfs_storage/` directory is gitignored and created automatically at runtime. The `uploads/` directory is tracked in Git and contains citizen complaint evidence files.
+
+---
+
+## Academic Journal Defense Changelog & Architectural Audit
+
+### 1. Summary of Changes (Quick Scan)
+- **HuggingFace EfficientNetB7 Integration**: Replaced PyTorch ResNet-50 with HuggingFace pipeline (`dima806/deepfake_vs_real_image_detection`) for multi-checkpoint deepfake/synthetic image classification (Submission, Rejection, Resolution).
+- **Multi-Signal Semantic Duplicate Detection**: Added HuggingFace SentenceTransformer (`sentence-transformers/all-MiniLM-L6-v2`) with a 3-tier matching engine (GPS Proximity, Matching Area Name, Global Text Match) and vectorized batch matrix encoding.
+- **Asynchronous Execution Architecture**: Offloaded heavy NLP model inference to background thread executors (`run_in_executor`), reducing duplicate check latency from 50s to <1.5s.
+- **Ward Rejection Workflow**: Implemented mandatory justification + evidence upload for issue rejections, backed by IPFS storage, Sepolia blockchain anchoring, and AI fake detection.
+- **Dynamic Community Priority Ranking**: Converted issue priority from manual ward selection to 100% upvote-driven percentile ranking (Critical: Top 25%, High: 25–50%, Medium: 50–75%, Low: Bottom 25%).
+- **Interactive Geospatial Mapping**: Integrated Folium + OpenStreetMap server-side rendering for status-coded, clustered map markers and ward-scoped filtering (`/api/maps/issues`).
+- **EIP-1559 Non-Blocking Blockchain Layer**: Enhanced Web3.py Sepolia anchoring with dynamic gas pricing (`baseFee * 2 + priorityFee`), `'pending'` nonce tracking, and automated failure queue retry tables.
+- **Project Structure Optimization**: Cleaned 427 MB of temporary research artifacts, obsolete benchmark scripts (`hf_model_test.py`, `duplicate/`), and stale docs; enabled version control tracking for `uploads/`.
+
+---
+
+### 2. Detailed Breakdown by Category
+
+#### A. Blockchain / Ethereum Smart Contract Logic
+- **Changes**: Web3.py service upgraded to use EIP-1559 dynamic fee calculation ($\text{maxFeePerGas} = \text{baseFee} \times 2 + \text{priorityFee}$) and `'pending'` nonce query. Added non-blocking receipt daemon polling with automated fallback insertion into `failed_blockchain_txns`.
+- **Files**: `backend/app/blockchain_service.py`, `backend/app/routes/admin.py`, `smart_contract/contracts/CivicRegistry.sol`.
+
+#### B. IPFS Storage / Evidence Handling
+- **Changes**: Extended IPFS SHA-256 CID generation to Ward Member Rejection evidence uploads. Modified `.gitignore` to track `uploads/` in Git version control.
+- **Files**: `backend/app/ipfs_service.py`, `backend/app/routes/ward.py`, `.gitignore`.
+
+#### C. SHA-256 Hashing / Integrity Verification
+- **Changes**: State fingerprinting recomputed dynamically on `GET /api/verify/{id}` to compare DB state vs. Sepolia on-chain hash.
+- **Files**: `backend/app/helpers.py`, `backend/app/routes/issues.py`.
+
+#### D. Complaint Lifecycle Workflow (Submission $\rightarrow$ Routing $\rightarrow$ Resolution)
+- **Changes**: Added `POST /api/ward/issues/{id}/reject` with mandatory rejection justification, evidence upload, IPFS CID generation, and Sepolia anchoring.
+- **Files**: `backend/app/routes/ward.py`, `backend/app/routes/authority.py`.
+
+#### E. Role-Based Governance (Citizen, Ward Member, Authority, Admin)
+- **Changes**: Citizens submit complaints & upvote; Ward Members redirect/reject; Authorities mark in-progress/resolve with proof; Admins manage users & retry failed blockchain transactions.
+- **Files**: `backend/app/routes/admin.py`, `backend/app/routes/ward.py`, `backend/app/routes/authority.py`.
+
+#### F. Support Voting / Dynamic Priority
+- **Changes**: Manual priority override removed. Issues automatically assigned `Critical`, `High`, `Medium`, or `Low` badges based on percentile rank in `upvote_count DESC` list.
+- **Files**: `backend/app/helpers.py`, `backend/app/routes/issues.py`.
+
+#### G. Location-Based Routing / Jurisdiction Logic
+- **Changes**: Haversine formula auto-detects nearest Delhi ward center; category-to-department map routes to responsible agency. Folium maps render markers at `/api/maps/issues`. Browser Geolocation updated with `{ enableHighAccuracy: true }`.
+- **Files**: `backend/app/routing.py`, `backend/app/routes/maps.py`, `frontend/src/report.js`.
+
+#### H. Frontend / UI Changes
+- **Changes**: Simplified to English single-locale mode (removed `hi.json`); added duplicate detection modal; updated title to "An AI-Driven Decentralized and Tamper-Resistant Civic Issue Reporting System for Smart Cities".
+- **Files**: `frontend/src/report.html`, `frontend/src/report.js`, `frontend/src/lang/en.json`.
+
+---
+
+### 3. Impact on Existing Academic Claims
+
+| Section in Paper/Presentation | Stated Claim / Previous Description | Required Update / Refinement |
+|---|---|---|
+| **Abstract & Introduction** | "Employs PyTorch ResNet-50 binary image classification for deepfake detection." | **Update**: "Utilizes HuggingFace EfficientNetB7 for multi-stage AI image authenticity verification and SentenceTransformer (all-MiniLM-L6-v2) for semantic duplicate detection." |
+| **System Architecture** | "Ward members manually assign priority levels (Low, Medium, High, Critical)." | **Update**: "Priority is calculated dynamically via upvote percentile ranking, establishing a community-driven triage model." |
+| **Methodology — Duplicate Prevention** | "Duplicates are flagged using a 150m Haversine distance radius check." | **Update**: "Duplicates are identified via a 3-tier Multi-Signal Matching Engine combining spatial proximity (500m), area name matching, and NLP cosine sentence embeddings." |
+| **Experimental Results & Latency** | "Duplicate detection evaluation time." | **Update**: Cite batch vector inference benchmarks (<1.5s response time using `all-MiniLM-L6-v2` with thread executor offloading). |
+| **Governance Workflow** | "Issues can only be moved to In-Progress or Resolved." | **Update**: "Includes formal Ward Representative Rejection workflow backed by IPFS evidence logging, Sepolia hash anchoring, and AI verification." |
+
+---
+
+### 4. Depth of Explanation Needed (Dual-Level)
+
+#### A. Plain-Summary Version (For Quick Briefing)
+- **AI Deepfake Detection**: Uses HuggingFace EfficientNetB7 (`dima806/deepfake_vs_real_image_detection`) at Submission, Rejection, and Resolution to verify image authenticity with real-time visual badges (`REAL` vs. `FAKE`).
+- **NLP Duplicate Detection**: Uses SentenceTransformer (`all-MiniLM-L6-v2`) with a 3-tier Multi-Signal matching engine (GPS, Area Name, Global Text Match) to prevent redundant reports in <1.5s.
+- **Blockchain Anchoring**: Hashes complaint data with SHA-256 and anchors on Ethereum Sepolia via Web3.py using EIP-1559 gas pricing and non-blocking background workers.
+
+#### B. Technical-Deep-Dive Version (For In-Depth Defense Questions)
+- **Image Pipeline**: Managed via singleton loader in `backend/app/ai/model.py`. `predict_image()` accepts `PIL.Image`, `bytes`, or `BytesIO`, runs `image-classification` pipeline, and normalizes output labels (`FAKE`, `SYNTHETIC`, `LABEL_1`) to `"Fake"` or `"Real"` with confidence score.
+- **NLP Vectorization**: `duplicate_detector.py` batch-encodes query + candidate texts in a single tensor operation (`model.encode(all_texts, convert_to_tensor=True)`), computes cosine matrix (`util.cos_sim`), and evaluates Tier 1 (GPS $\le$ 500m & sim $\ge$ 0.45), Tier 2 (Area match & sim $\ge$ 0.55), Tier 3 (sim $\ge$ 0.85). Offloaded asynchronously via `asyncio.get_event_loop().run_in_executor()`.
+- **EIP-1559 Web3.py**: Constructs transactions using $\text{maxFeePerGas} = \text{baseFee} \times 2 + \text{priorityFee}$ and `'pending'` block tag nonces in `backend/app/blockchain_service.py`. Failed receipts are routed to `failed_blockchain_txns` for batch retry.
+
+---
+
+### 5. New / Updated Diagrams Needed
+
+1. **Fig 1: System Architecture** — Replace ResNet-50 block with HuggingFace EfficientNetB7 and SentenceTransformer NLP modules; show connection from FastAPI router to thread pool executor; add Folium interactive map component.
+2. **Fig 2: Issue Lifecycle State Diagram** — Add `Rejected` state branching from `Pending` (Ward Representative action) with mandatory IPFS evidence CID and Sepolia hash anchor.
+3. **Fig 3: Duplicate Detection Sequence Diagram** — Redraw sequence to show 3-Tier Multi-Signal evaluation flow (GPS Proximity $\rightarrow$ Area Name Check $\rightarrow$ Global Tensor Encoding).
+4. **Fig 4: Dynamic Priority Pipeline** — Illustrate `upvote_count DESC` percentile sorting ($0\text{--}25\% \rightarrow \text{Critical}$, $25\text{--}50\% \rightarrow \text{High}$, $50\text{--}75\% \rightarrow \text{Medium}$, $75\text{--}100\% \rightarrow \text{Low}$).
+
