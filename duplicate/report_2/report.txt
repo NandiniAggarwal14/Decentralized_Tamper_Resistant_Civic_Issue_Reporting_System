@@ -1,6 +1,0 @@
-title: Deep pothole causing accidents on MG Road
-description: A massive pothole has formed on MG Road close to Central Park. It is causing severe traffic disruption and multiple accidents have been reported. The road surface has completely caved in at this spot. Needs immediate attention from PWD.
-category: Roads & Infrastructure
-area: Connaught Place
-latitude: 28.6315
-longitude: 77.2167

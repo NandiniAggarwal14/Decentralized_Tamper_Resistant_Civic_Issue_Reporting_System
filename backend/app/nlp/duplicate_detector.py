@@ -35,7 +35,7 @@ def normalize_text(text: str) -> str:
 
 def compute_similarity(text1: str, text2: str) -> float:
     """
-    Compute semantic cosine similarity between two texts using all-MiniLM-L6-v2.
+    Compute semantic cosine similarity between two individual texts.
     Falls back to token Jaccard similarity if vector model is unavailable.
     """
     norm1 = normalize_text(text1)
@@ -68,15 +68,26 @@ def find_duplicates(
     description: str,
     latitude: float,
     longitude: float,
-    max_distance_meters: float = 150.0,
-    similarity_threshold: float = 0.50
+    area: str = "",
+    max_distance_meters: float = 500.0
 ) -> List[Dict[str, Any]]:
     """
-    Search active issues within max_distance_meters (or same ward area) and check text similarity.
-    Returns sorted list of duplicate candidate issues.
+    Search active issues using Multi-Signal Matching:
+      - Tier 1 (GPS Proximity): dist <= 500m (threshold 0.45)
+      - Tier 2 (Same Area Name): matching area name string (threshold 0.55, overrides GPS drift)
+      - Tier 3 (Global High Text Similarity): similarity >= 0.85 (overrides location)
+    
+    Uses batch sentence encoding for high performance.
     """
-    query_text = f"{title} {description}"
+    query_title_norm = normalize_text(title)
+    query_desc_norm = normalize_text(description)
+    query_text_norm = f"{query_title_norm} {query_desc_norm}".strip()
+    query_area_norm = normalize_text(area)
 
+    if not query_text_norm:
+        return []
+
+    # Fetch active candidates from DB
     with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
@@ -90,39 +101,101 @@ def find_duplicates(
             )
             candidates = cursor.fetchall()
 
-    duplicates = []
+    if not candidates:
+        return []
 
-    for candidate in candidates:
-        cand_lat = candidate["latitude"]
-        cand_lng = candidate["longitude"]
-
-        # Calculate GPS distance
+    # Pre-process candidate distance & text
+    candidate_data = []
+    for cand in candidates:
+        cand_lat = cand["latitude"]
+        cand_lng = cand["longitude"]
         dist = haversine_distance(latitude, longitude, cand_lat, cand_lng)
+        
+        cand_area = cand.get("area") or ""
+        cand_area_norm = normalize_text(cand_area)
+        
+        same_area = bool(query_area_norm and cand_area_norm and (
+            query_area_norm in cand_area_norm or cand_area_norm in query_area_norm
+        ))
 
-        # Check distance threshold (150m) OR exact same area name matching
-        if dist <= max_distance_meters or dist <= 500.0:
-            cand_text = f"{candidate['title']} {candidate['description']}"
-            sim_score = compute_similarity(query_text, cand_text)
+        cand_title_norm = normalize_text(cand.get("title", ""))
+        cand_desc_norm = normalize_text(cand.get("description", ""))
+        cand_text_norm = f"{cand_title_norm} {cand_desc_norm}".strip()
 
-            # If GPS is very close (<150m), lower similarity threshold slightly to 0.45; otherwise 0.55
-            effective_threshold = similarity_threshold if dist <= 150.0 else (similarity_threshold + 0.10)
+        candidate_data.append({
+            "db_row": cand,
+            "dist": dist,
+            "same_area": same_area,
+            "cand_text_norm": cand_text_norm
+        })
 
-            if sim_score >= effective_threshold:
-                duplicates.append({
-                    "id": str(candidate["id"]),
-                    "title": candidate["title"],
-                    "description": candidate["description"],
-                    "category": candidate["category"],
-                    "status": candidate["status"],
-                    "image_url": candidate.get("image_url"),
-                    "upvotes": candidate.get("upvote_count", 0),
-                    "downvotes": candidate.get("downvote_count", 0),
-                    "distance_meters": round(dist, 1),
-                    "similarity_score": round(sim_score * 100, 1),
-                    "created_at": candidate["created_at"].isoformat() if candidate.get("created_at") else None
-                })
+    # Batch compute similarity scores
+    model = get_sentence_model()
+    similarity_scores = []
 
-    # Sort candidates by similarity score descending, then distance ascending
+    if model is not None and candidate_data:
+        try:
+            from sentence_transformers import util
+            all_texts = [query_text_norm] + [cd["cand_text_norm"] for cd in candidate_data]
+            embeddings = model.encode(all_texts, convert_to_tensor=True)
+            
+            query_emb = embeddings[0]
+            candidate_embs = embeddings[1:]
+            
+            sim_matrix = util.cos_sim(query_emb, candidate_embs)[0]
+            similarity_scores = [float(s) for s in sim_matrix]
+        except Exception as e:
+            logger.error(f"Batch vector encoding failed: {e}. Falling back to token Jaccard.")
+            model = None
+
+    if model is None:
+        # Fallback to Jaccard token overlap
+        words_q = set(query_text_norm.split())
+        for cd in candidate_data:
+            words_c = set(cd["cand_text_norm"].split())
+            if not words_q or not words_c:
+                similarity_scores.append(0.0)
+            else:
+                sim = len(words_q.intersection(words_c)) / len(words_q.union(words_c))
+                similarity_scores.append(sim)
+
+    # Multi-Signal Filtering
+    duplicates = []
+    for i, cd in enumerate(candidate_data):
+        sim_score = similarity_scores[i]
+        dist = cd["dist"]
+        same_area = cd["same_area"]
+        cand = cd["db_row"]
+
+        # Determine if candidate qualifies under Multi-Signal tiers
+        is_duplicate = False
+
+        if dist <= max_distance_meters and sim_score >= 0.45:
+            # Tier 1: Close GPS distance + text similarity
+            is_duplicate = True
+        elif same_area and sim_score >= 0.55:
+            # Tier 2: Same area name + text similarity (handles GPS drift)
+            is_duplicate = True
+        elif sim_score >= 0.85:
+            # Tier 3: Very high text similarity (handles identical complaint across city)
+            is_duplicate = True
+
+        if is_duplicate:
+            duplicates.append({
+                "id": str(cand["id"]),
+                "title": cand["title"],
+                "description": cand["description"],
+                "category": cand["category"],
+                "status": cand["status"],
+                "image_url": cand.get("image_url"),
+                "upvotes": cand.get("upvote_count", 0),
+                "downvotes": cand.get("downvote_count", 0),
+                "distance_meters": round(dist, 1),
+                "similarity_score": round(sim_score * 100, 1),
+                "created_at": cand["created_at"].isoformat() if cand.get("created_at") else None
+            })
+
+    # Sort by similarity score descending, then distance ascending
     duplicates.sort(key=lambda x: (x["similarity_score"], -x["distance_meters"]), reverse=True)
-    logger.info(f"Duplicate search for '{title}' found {len(duplicates)} candidates.")
+    logger.info(f"Multi-Signal Duplicate search for '{title}' (Area: '{area}') found {len(duplicates)} duplicate(s).")
     return duplicates

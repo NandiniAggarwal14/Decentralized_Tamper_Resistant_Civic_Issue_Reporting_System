@@ -1,6 +1,0 @@
-title: Severe pothole on MG Road near Central Park
-description: There is a large and dangerous pothole on MG Road, approximately 50 meters from Central Park entrance. Multiple vehicles have been damaged. The pothole is roughly 2 feet deep and 3 feet wide. Urgent repair needed.
-category: Roads & Infrastructure
-area: Connaught Place
-latitude: 28.6315
-longitude: 77.2167

@@ -1,6 +1,8 @@
-# Decentralized Civic Issue Reporting System
+# An AI-Driven Decentralized and Tamper-Resistant Civic Issue Reporting System for Smart Cities
 
-A full-stack civic issue management platform that empowers citizens to report local problems, assigns them to the correct government wards and departments, and anchors every report's cryptographic fingerprint onto the **Ethereum Sepolia** testnet to prevent tampering. Media evidence (images, audio, video) is stored via a simulated **IPFS** layer and served locally. Now featuring visual e-commerce status trails and simplified blockchain logging.
+A full-stack civic issue management platform that empowers citizens to report local problems, assigns them to the correct government wards and departments, and anchors every report's cryptographic fingerprint onto the **Ethereum Sepolia** testnet to prevent tampering. Media evidence (images, audio, video) is stored via a simulated **IPFS** layer and served locally.
+
+Powered by **HuggingFace AI models** — an **EfficientNetB7** deep-learning classifier detects AI-generated / deepfake images across the complaint lifecycle, while a **Sentence Transformer (all-MiniLM-L6-v2)** provides semantic duplicate detection to prevent redundant civic complaints.
 
 ---
 
@@ -20,7 +22,8 @@ A full-stack civic issue management platform that empowers citizens to report lo
 13. [Seeding & Data Reset](#seeding--data-reset)
 14. [Running Tests](#running-tests)
 15. [Priority System](#priority-system)
-16. [Collaboration Guide](#collaboration-guide)
+16. [Utilities](#utilities)
+17. [Collaboration Guide](#collaboration-guide)
 
 ---
 
@@ -40,11 +43,13 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 | Layer | Technology |
 |---|---|
 | Backend | FastAPI (Python 3.10+) |
-| AI / ML | PyTorch + Torchvision (ResNet-50 Deep Learning Classifier) |
+| AI — Image Authenticity | HuggingFace Transformers — EfficientNetB7 (`dima806/deepfake_vs_real_image_detection`) |
+| AI — Duplicate Detection | Sentence Transformers — all-MiniLM-L6-v2 (`sentence-transformers/all-MiniLM-L6-v2`) |
 | Frontend | Vanilla HTML + CSS + JavaScript |
 | Database | Neon PostgreSQL (cloud-hosted, shared) |
 | Blockchain | Ethereum Sepolia via Infura + Web3.py |
 | Smart Contract | Solidity (Hardhat deployment) |
+| Maps | Folium + OpenStreetMap (server-side rendered interactive maps) |
 | Media Storage | Local filesystem (`uploads/`) + simulated IPFS CIDs |
 | Auth | JWT (python-jose) + bcrypt (passlib) |
 | Testing | pytest + httpx (TestClient) |
@@ -57,7 +62,7 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 +--------------------------------------------------------------+
 |                     Browser (Frontend)                        |
 |  index.html - citizen.html - ward.html - authority.html      |
-|  admin.html - report.html                                    |
+|  admin.html - report.html - ai.html                          |
 +---------------------------+----------------------------------+
                             | HTTP / REST
 +---------------------------v----------------------------------+
@@ -67,6 +72,12 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 |  | Auth     |  | Routing    |  | IPFS Service           |   |
 |  | (JWT)    |  | (GPS+Cat)  |  | (local simulation)     |   |
 |  +----------+  +------------+  +------------------------+   |
+|                                                              |
+|  +---------------------------+  +------------------------+   |
+|  | AI Module (EfficientNetB7)|  | NLP Module (MiniLM)    |   |
+|  | Fake Image Detection      |  | Semantic Duplicate     |   |
+|  | HuggingFace Pipeline      |  | Detection + Haversine  |   |
+|  +---------------------------+  +------------------------+   |
 |                                                              |
 |  +--------------------------------------------------------+  |
 |  |         Blockchain Service (Web3.py)                    |  |
@@ -111,12 +122,21 @@ Citizens submit civic issues (potholes, power outages, water leaks, etc.) with G
 ```
 - Issues can be **rejected** by Ward Members with mandatory text reasons and evidence uploads (documents or images), which are stored on IPFS and anchored on the Sepolia blockchain to guarantee transparency.
 
-### Multi-Phase AI Image Verification (PyTorch ResNet-50)
-Every uploaded image across the complaint lifecycle is automatically evaluated by a fine-tuned **ResNet-50** deep-learning binary classifier to detect synthetic or AI-generated media (`Fake`) versus authentic photography (`Real`):
+### Multi-Phase AI Image Verification (HuggingFace EfficientNetB7)
+Every uploaded image across the complaint lifecycle is automatically evaluated by a **HuggingFace EfficientNetB7** deep-learning classifier (`dima806/deepfake_vs_real_image_detection`) to detect synthetic or AI-generated media (`Fake`) versus authentic photography (`Real`):
 - **Citizen Submission**: Evaluates primary report photos upon registration.
 - **Ward Rejection Evidence**: Evaluates evidence uploaded by ward representatives during rejection.
 - **Authority Resolution Proof**: Evaluates completion proof photos uploaded by department officials.
 - **Visual Transparency Badges**: Real-time badges (`🟢 REAL [confidence%]` / `🔴 FAKE (AI-Generated) [confidence%]`) are rendered on issue cards and inside the Citizen Status Audit Trail timeline modal.
+- **Graceful Fallback**: If the model is unavailable, returns a neutral 50% confidence score instead of blocking submissions.
+
+### NLP Semantic Duplicate Detection (Sentence Transformer all-MiniLM-L6-v2)
+Before a citizen submits a new complaint, the system checks for potential duplicate reports using a **Sentence Transformer** model (`sentence-transformers/all-MiniLM-L6-v2`, 22M parameters):
+- **Spatial Filtering**: Haversine distance calculation filters candidates within 150–500 metres of the new report.
+- **Semantic Similarity**: Cosine similarity between sentence embeddings of complaint titles + descriptions identifies textual duplicates.
+- **Dynamic Thresholds**: Closer complaints (≤150m) use a lower similarity threshold (0.45) than distant ones (0.55).
+- **Citizen Choice**: If duplicates are found, citizens can upvote the existing report or submit anyway.
+- **Fallback**: If the NLP model is unavailable, falls back to token-based Jaccard similarity.
 
 
 ### Dynamic Priority (Upvote-Driven)
@@ -135,6 +155,12 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 - Citizens upvote issues they care about (one upvote/downvote per user per issue).
 - A 5-second cooldown prevents spam voting.
 - Upvote count is visible on every card across all three role dashboards.
+
+### Interactive Maps (Folium + OpenStreetMap)
+- Server-side rendered interactive maps using **Folium** with OpenStreetMap tiles.
+- Status colour-coded markers (Amber/Blue/Green/Red) with clustered pins for dense areas.
+- Custom HTML popups with title, status badge, category, area, upvotes, and GPS coordinates.
+- Ward-filtered map views for ward member dashboards.
 
 ### Visual Timeline & Stepper Status Trail
 - Every complaint has an audit timeline logged securely in both the database and the blockchain.
@@ -160,75 +186,78 @@ Ward members can **no longer manually set priority** -- it is fully driven by co
 
 ```
 .
-|-- AI/
-|   |-- Models/                    # Fine-tuned PyTorch ResNet-50 checkpoints
-|-- backend/
-|   |-- app/
-|   |   |-- main.py                # FastAPI app entry point, middleware, static mounts
-|   |   |-- config.py              # Centralised configuration constants
-|   |   |-- auth.py                # JWT token creation & validation, password hashing
-|   |   |-- database.py            # Neon PostgreSQL connection pool (psycopg2)
-|   |   |-- schema.sql             # Full DB schema with migrations (run via init_db())
-|   |   |-- models.py              # Pydantic request/response models
-|   |   |-- helpers.py             # Shared utility functions (hashing, priority calc, serialization)
-|   |   |-- routing.py             # GPS ward routing + category classification
-|   |   |-- blockchain_service.py  # Web3.py Sepolia integration (EIP-1559, async receipts)
-|   |   |-- ipfs_service.py        # Simulated IPFS JSON storage
-|   |   |-- ai/                    # PyTorch AI Classifier Package
-|   |   |   |-- __init__.py
-|   |   |   |-- model.py           # ResNet-50 singleton model loader
-|   |   |   |-- predict.py         # Image preprocessing & binary classification pipeline
-|   |   |-- routes/
-|   |   |   |-- __init__.py
-|   |   |   |-- ai.py              # /api/ai/* endpoints
-|   |   |   |-- auth.py            # /api/auth/* endpoints
-|   |   |   |-- issues.py          # /api/issues/* endpoints
-|   |   |   |-- ward.py            # /api/ward/* endpoints
-|   |   |   |-- authority.py       # /api/authority/* endpoints
-|   |   |   |-- admin.py           # /api/admin/* endpoints
-|   |   |   |-- pages.py           # Static page serving (FileResponse mappings)
-|   |   |-- abis/                  # Compiled contract ABIs (CivicRegistry.json)
-|   |   |-- tests/
-|   |   |   |-- conftest.py
-|   |   |   |-- test_admin.py
-|   |   |   |-- test_ai.py         # AI verification endpoints & model integration test
-|   |   |   |-- test_auth.py
-|   |   |   |-- test_issues.py
-|   |   |   |-- test_routing.py
-|   |   |   |-- test_voting.py
-|   |-- scripts/
-|   |   |-- seed.py                # Truncate + re-seed (admin, wards, departments)
-|   |   |-- refresh_reports.py     # Purge all issue data, votes, and status trails
-|   |   |-- refresh_users.py       # Purge non-admin user accounts and reset ward links
-|   |   |-- backfill_hashes.py     # One-time script to hash existing issues
-|   |   |-- verify_sync_status.py  # Checks DB vs on-chain hash consistency
-|   |   |-- reset_passwords.py     # Password reset utility
-|-- frontend/
-|   |-- src/
-|   |   |-- index.html             # Home page (Login / Register)
-|   |   |-- citizen.html / .js     # Citizen dashboard & audit trail
-|   |   |-- ward.html / .js        # Ward member dashboard & evidence proof
-|   |   |-- authority.html / .js   # Government authority dashboard & resolution proof
-|   |   |-- admin.html / .js       # Admin dashboard (users, stats, blockchain monitor)
-|   |   |-- ai.html / .js          # Standalone AI Image Verification Sandbox
-|   |   |-- report.html / .js      # Issue submission form
-|   |   |-- auth.js                # Shared auth helpers
-|   |   |-- i18n.js                # Internationalisation engine
-|   |   |-- styles.css             # Global dark-mode design system
-|   |   |-- lang/
-|   |   |   |-- en.json
-|-- smart_contract/
-|   |-- contracts/
-|   |   |-- CivicRegistry.sol      # Solidity hash registry
-|   |-- scripts/
-|   |   |-- deploy.js              # Hardhat deploy script
-|   |-- hardhat.config.js
-|-- uploads/                       # Uploaded media files (gitignored)
-|-- ipfs_storage/                  # Simulated IPFS JSON blobs (gitignored)
-|-- .env                           # Secrets (never committed)
-|-- .gitignore
-|-- requirements.txt
-|-- README.md
+├── backend/
+│   ├── app/
+│   │   ├── main.py                # FastAPI app entry point, lifespan model loading, middleware
+│   │   ├── config.py              # Centralised configuration constants
+│   │   ├── auth.py                # JWT token creation & validation, password hashing
+│   │   ├── database.py            # Neon PostgreSQL connection pool (psycopg2)
+│   │   ├── schema.sql             # Full DB schema with migrations (run via init_db())
+│   │   ├── models.py              # Pydantic request/response models
+│   │   ├── helpers.py             # Shared utility functions (hashing, priority calc, serialization)
+│   │   ├── routing.py             # GPS ward routing + category classification
+│   │   ├── blockchain_service.py  # Web3.py Sepolia integration (EIP-1559, async receipts)
+│   │   ├── ipfs_service.py        # Simulated IPFS JSON storage
+│   │   ├── ai/                    # HuggingFace EfficientNetB7 Deepfake Classifier
+│   │   │   ├── __init__.py
+│   │   │   ├── model.py           # HuggingFace pipeline singleton loader
+│   │   │   └── predict.py         # Image preprocessing & inference pipeline
+│   │   ├── nlp/                   # Sentence Transformer Duplicate Detector
+│   │   │   ├── __init__.py
+│   │   │   └── duplicate_detector.py  # Semantic similarity + Haversine spatial filtering
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── ai.py              # POST /api/predict, /api/ai/predict
+│   │   │   ├── auth.py            # /api/auth/* endpoints
+│   │   │   ├── issues.py          # /api/issues/* + /api/issues/check-duplicates
+│   │   │   ├── ward.py            # /api/ward/* endpoints
+│   │   │   ├── authority.py       # /api/authority/* endpoints
+│   │   │   ├── admin.py           # /api/admin/* endpoints
+│   │   │   ├── maps.py            # /api/maps/* Folium interactive map endpoints
+│   │   │   └── pages.py           # Static page serving (FileResponse mappings)
+│   │   ├── abis/                  # Compiled contract ABIs (CivicRegistry.json)
+│   │   └── tests/
+│   │       ├── conftest.py
+│   │       ├── test_admin.py
+│   │       ├── test_ai.py         # AI verification endpoints & model integration test
+│   │       ├── test_auth.py
+│   │       ├── test_issues.py
+│   │       ├── test_rejection.py  # Ward member rejection workflow tests
+│   │       ├── test_routing.py
+│   │       └── test_voting.py
+│   └── scripts/
+│       ├── seed.py                # Truncate + re-seed (admin, wards, departments)
+│       ├── refresh_reports.py     # Purge all issue data, votes, and status trails
+│       ├── refresh_users.py       # Purge non-admin user accounts and reset ward links
+│       ├── backfill_hashes.py     # One-time script to hash existing issues
+│       ├── verify_sync_status.py  # Checks DB vs on-chain hash consistency
+│       └── reset_passwords.py     # Password reset utility
+├── frontend/
+│   └── src/
+│       ├── index.html             # Home page (Login / Register)
+│       ├── citizen.html / .js     # Citizen dashboard & audit trail
+│       ├── ward.html / .js        # Ward member dashboard & evidence proof
+│       ├── authority.html / .js   # Government authority dashboard & resolution proof
+│       ├── admin.html / .js       # Admin dashboard (users, stats, blockchain monitor)
+│       ├── ai.html / .js          # Standalone AI Image Verification Sandbox
+│       ├── report.html / .js      # Issue submission form (with duplicate detection)
+│       ├── auth.js                # Shared auth helpers
+│       ├── i18n.js                # Internationalisation engine
+│       ├── styles.css             # Global dark-mode design system
+│       └── lang/                  # i18n translation files
+├── smart_contract/
+│   ├── contracts/
+│   │   └── CivicRegistry.sol      # Solidity hash registry
+│   ├── scripts/
+│   │   └── deploy.js              # Hardhat deploy script
+│   └── hardhat.config.js
+├── uploads/                       # Uploaded media files (committed to Git)
+├── test_images/                   # Test images for AI model benchmarking (gitignored)
+├── cleanup_huggingface_cache.py   # Utility: scan & delete HuggingFace model caches from all drives
+├── .env                           # Secrets (never committed)
+├── .gitignore
+├── requirements.txt
+└── README.md
 ```
 
 ---
@@ -355,9 +384,12 @@ http://127.0.0.1:8000
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/issues` | List all issues (sorted by upvotes) |
-| `POST` | `/api/issues` | Submit a new civic issue |
+| `POST` | `/api/issues` | Submit a new civic issue (auto-runs AI image scan) |
+| `POST` | `/api/issues/check-duplicates` | NLP semantic duplicate detection before submission |
 | `POST` | `/api/issues/{id}/vote` | Cast an upvote or downvote |
-| `GET` | `/api/issues/{id}/verify` | Verify tamper-resistance on-chain |
+| `GET` | `/api/issues/{id}/status-history` | Full chronological status audit trail |
+| `GET` | `/api/verify/{id}` | Verify tamper-resistance on-chain |
+| `GET` | `/api/verify-all` | Batch verify all issues against blockchain |
 
 ### Ward Member
 | Method | Endpoint | Description |
@@ -390,11 +422,18 @@ http://127.0.0.1:8000
 | `GET` | `/api/admin/failed-transactions` | Failed blockchain transaction queue |
 | `POST` | `/api/admin/retry-transactions` | Retry all failed transactions |
 
-### AI Image Authenticity Verification
+### AI Image Authenticity Verification (EfficientNetB7)
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/ai/predict` | Predict if an uploaded image is Fake (AI-Generated) or Real |
-| `POST` | `/api/ai/predict/` | Alias endpoint for AI prediction |
+| `POST` | `/api/predict` | Predict if an uploaded image is Fake (AI-Generated) or Real |
+| `POST` | `/api/ai/predict` | Alias endpoint for AI prediction |
+
+> **Response Schema:** `{"prediction": "Fake" | "Real", "confidence": 98.41, "probability": 0.9841}`
+
+### Maps (Folium)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/maps/issues` | Interactive Folium map of all issues (optional `?ward_id=X` filter) |
 
 ### Health
 | Method | Endpoint | Description |
@@ -491,16 +530,18 @@ python -m backend.scripts.verify_sync_status
 ## Running Tests
 
 ```bash
-python -m pytest
+python -m pytest backend/app/tests/ -v
 ```
 
-All 24 unit tests cover admin operations, authentication, issue submission, ward routing, and voting. Tests use mock database connections and do not require a live Neon database or blockchain node.
+Tests cover admin operations, authentication, issue submission, ward routing, voting, AI inference, and rejection workflows. Tests use mock database connections and do not require a live Neon database or blockchain node.
 
 | Test File | Coverage |
 |---|---|
 | `test_admin.py` | Admin-only endpoints, user approval/rejection, stats |
+| `test_ai.py` | AI prediction endpoint, model integration |
 | `test_auth.py` | Register, login, token validation, role enforcement |
 | `test_issues.py` | Issue submission, validation, public feed |
+| `test_rejection.py` | Ward member rejection workflow with evidence |
 | `test_routing.py` | GPS ward detection, category-to-department mapping |
 | `test_voting.py` | Upvote/downvote toggle, cooldown rate limiting |
 
@@ -522,6 +563,20 @@ This ensures that community-driven issues always surface at the top with appropr
 
 ---
 
+## Utilities
+
+### HuggingFace Cache Cleanup
+
+The `cleanup_huggingface_cache.py` script scans all local drives (C:, D:, E:, F:, etc.) for cached HuggingFace models, reports total space usage, and deletes them on confirmation:
+
+```bash
+python cleanup_huggingface_cache.py
+```
+
+This is useful when HuggingFace model caches accumulate significant disk space (often several GB) across multiple user directories and project environments.
+
+---
+
 ## Collaboration Guide
 
 ### For Nandini (or any collaborator pulling this branch)
@@ -535,6 +590,8 @@ This ensures that community-driven issues always surface at the top with appropr
    ```bash
    pip install -r requirements.txt
    ```
+
+   > **Note on AI models**: The first run will automatically download the HuggingFace models (~500 MB for EfficientNetB7 + ~90 MB for all-MiniLM-L6-v2) and cache them locally. Subsequent runs load from cache.
 
 3. **Run database migrations** (safe to re-run, uses `IF NOT EXISTS`):
    ```bash
@@ -553,9 +610,17 @@ This ensures that community-driven issues always surface at the top with appropr
    python -m backend.app.main
    ```
 
-7. **Run tests** to confirm everything works:
-   ```bash
-   python -m pytest
+   On first startup, you will see log messages confirming both AI models are loading:
+   ```
+   INFO: Loading HuggingFace EfficientNetB7 Deepfake Detector...
+   INFO: EfficientNetB7 Deepfake Classifier loaded successfully.
+   INFO: Loading NLP Duplicate Detector model 'sentence-transformers/all-MiniLM-L6-v2'...
+   INFO: SentenceTransformer model loaded successfully.
    ```
 
-> **Note**: The `ipfs_storage/` and `uploads/` directories are gitignored. They will be created automatically at runtime when issues are submitted. You do not need to manually create them.
+7. **Run tests** to confirm everything works:
+   ```bash
+   python -m pytest backend/app/tests/ -v
+   ```
+
+> **Note**: The `ipfs_storage/` directory is gitignored and created automatically at runtime. The `uploads/` directory is tracked in Git and contains citizen complaint evidence files.

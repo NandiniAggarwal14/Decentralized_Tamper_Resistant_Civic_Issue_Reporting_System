@@ -1,6 +1,0 @@
-title: Overflowing garbage bins at Sarojini Nagar Market
-description: The municipal garbage collection bins near Gate 2 of Sarojini Nagar Market have not been emptied in over a week. Waste is spilling onto the road causing hygiene concerns and foul odor. Stray animals are scattering the garbage everywhere.
-category: Sanitation & Waste
-area: Sarojini Nagar
-latitude: 28.5722
-longitude: 77.2006

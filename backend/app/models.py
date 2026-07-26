@@ -37,6 +37,7 @@ class DuplicateCheckRequest(BaseModel):
     description: str
     latitude: float
     longitude: float
+    area: Optional[str] = ""
 
 # Admin management models
 class CreateWardRequest(BaseModel):

@@ -75,7 +75,8 @@ function getCurrentGPS() {
         statusEl.style.color = 'var(--danger)';
         document.getElementById('complaint-lat').value = "28.6315";
         document.getElementById('complaint-lng').value = "77.2167";
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   } else {
     statusEl.textContent = 'GPS not supported.';
@@ -196,6 +197,7 @@ async function checkDuplicatesAndSubmit(e) {
   
   const title = document.getElementById('complaint-title').value.trim();
   const description = document.getElementById('complaint-desc').value.trim();
+  const area = document.getElementById('complaint-area').value.trim();
   let latitude = parseFloat(document.getElementById('complaint-lat').value);
   let longitude = parseFloat(document.getElementById('complaint-lng').value);
 
@@ -209,14 +211,14 @@ async function checkDuplicatesAndSubmit(e) {
   submitBtn.textContent = 'Checking for duplicate complaints...';
 
   try {
-    console.log('Sending duplicate check request for:', { title, description, latitude, longitude });
+    console.log('Sending duplicate check request for:', { title, description, area, latitude, longitude });
     const checkRes = await fetch('/api/issues/check-duplicates', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ title, description, latitude, longitude })
+      body: JSON.stringify({ title, description, area, latitude, longitude })
     });
     
     if (checkRes.ok) {

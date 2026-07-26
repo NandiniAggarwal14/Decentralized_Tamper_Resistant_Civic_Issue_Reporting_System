@@ -50,9 +50,9 @@ Desktop.ini
 ipfs_storage/
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Media uploads (user-generated, not tracked in version control)
+# Media uploads (tracked in version control)
 # ─────────────────────────────────────────────────────────────────────────────
-uploads/
+# uploads/  ← Removed: uploads are now committed to the repository
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Test & cache

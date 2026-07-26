@@ -49,7 +49,7 @@ def test_reject_issue_success(client, mock_db):
     assert response.status_code == 200
     res_data = response.json()
     assert res_data["success"] is True
-    assert "rejected successfully" in res_data["message"]
+    assert "Issue rejected" in res_data["message"]
     assert "tx_hash" in res_data
     assert "ipfs_cid" in res_data
     assert "blockchain_hash" in res_data

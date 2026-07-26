@@ -73,12 +73,19 @@ async def check_duplicate_issues(
     req: DuplicateCheckRequest,
     current_user: UserResponse = Depends(get_current_user)
 ) -> dict:
+    import asyncio
     from backend.app.nlp.duplicate_detector import find_duplicates
-    duplicates = find_duplicates(
-        title=req.title.strip(),
-        description=req.description.strip(),
-        latitude=req.latitude,
-        longitude=req.longitude
+    
+    loop = asyncio.get_event_loop()
+    duplicates = await loop.run_in_executor(
+        None,
+        lambda: find_duplicates(
+            title=req.title.strip(),
+            description=req.description.strip(),
+            latitude=req.latitude,
+            longitude=req.longitude,
+            area=req.area or ""
+        )
     )
     return {"success": True, "count": len(duplicates), "duplicates": duplicates}
 
