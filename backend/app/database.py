@@ -155,16 +155,14 @@ def get_connection():
 
 def warmup() -> None:
     """
-    Send a trivial query to keep the Neon instance awake.
-    Call this once at startup so the first real request is fast.
+    Send a trivial query to keep the Neon instance awake and run schema migration checks.
     """
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-        logger.info("Database warmup ping successful.")
+        init_db()
+        logger.info("Database warmup & schema migration successful.")
     except Exception as exc:
-        logger.warning("Database warmup ping failed (non-fatal): %s", exc)
+        logger.warning("Database warmup failed (non-fatal): %s", exc)
+
 
 
 def init_db() -> None:

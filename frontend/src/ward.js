@@ -2,7 +2,9 @@
 let token = null;
 let currentUser = null;
 let departments = [];
+let allWardIssues = [];
 const issuesContainer = document.getElementById('ward-issues-container');
+
 
 // Auth Guard Check
 async function initializeWard() {
@@ -92,8 +94,10 @@ async function loadWardIssues() {
     });
     const data = await res.json();
     if (res.ok && data.success) {
-      renderWardIssues(data.data);
+      allWardIssues = data.data || [];
+      renderWardIssues(allWardIssues);
     } else {
+
       issuesContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 40px;">Failed to load ward queue.</p>`;
     }
   } catch (err) {
@@ -175,20 +179,31 @@ function renderWardIssues(issues) {
       `;
     }
 
+    // Department redirection status block
+    const deptStatusBadge = issue.is_redirected 
+      ? `<span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4); margin-left: 6px;">➡️ Redirected</span>`
+      : `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); margin-left: 6px;">🏢 Initial Routing</span>`;
+
     // Footer actions (only for pending issues)
     let footerActionsHTML = '';
     if (issue.status === 'pending') {
+      const redirectControlHTML = issue.is_redirected
+        ? `<div style="font-size: 0.85rem; color: #a5b4fc; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+             <span>✓ Redirected to <strong>${escapeHtml(issue.department_name || 'Department')}</strong></span>
+           </div>`
+        : `<div style="display: flex; align-items: center; gap: 8px;">
+             <span data-i18n="redirect_dept">Redirect Department:</span>
+             <select id="redirect-dept-${issue.id}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff;">
+               ${redirectOptions}
+             </select>
+             <button onclick="redirectDept('${issue.id}')" class="btn" style="padding: 6px 12px; font-size: 0.8rem;" data-i18n="redirect">Redirect</button>
+           </div>`;
+
       footerActionsHTML = `
         <div class="issue-footer" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 12px;">
           <!-- Actions panel -->
           <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span data-i18n="redirect_dept">Redirect Department:</span>
-              <select id="redirect-dept-${issue.id}" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-secondary); color: #fff;">
-                ${redirectOptions}
-              </select>
-              <button onclick="redirectDept('${issue.id}')" class="btn" style="padding: 6px 12px; font-size: 0.8rem;" data-i18n="redirect">Redirect</button>
-            </div>
+            ${redirectControlHTML}
             <button onclick="openRejectModal('${issue.id}')" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem; background: #ef4444; border-color: #ef4444;">Reject Complaint</button>
           </div>
         </div>
@@ -203,7 +218,7 @@ function renderWardIssues(issues) {
         : 'background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4);';
       const badgeIcon = isFake ? '🔴' : '🟢';
       const confText = issue.ai_confidence ? ` ${issue.ai_confidence.toFixed(1)}%` : '';
-      aiBadgeHTML = `<span class="badge" style="${badgeStyle}" title="AI ResNet50 Inspection">${badgeIcon} ${issue.ai_prediction.toUpperCase()}${confText}</span>`;
+      aiBadgeHTML = `<span class="badge" style="${badgeStyle}" title="AI Inspection">${badgeIcon} ${issue.ai_prediction.toUpperCase()}${confText}</span>`;
     }
 
     return `
@@ -223,8 +238,10 @@ function renderWardIssues(issues) {
         <div style="font-size: 0.85rem; margin: 12px 0; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
           <div><strong>Address:</strong> ${escapeHtml(issue.address || 'GPS Coordinates Only')}</div>
           <div><strong>Category:</strong> ${escapeHtml(issue.category)}</div>
-          <div><strong>Upvotes:</strong> ${issue.votes ? issue.votes.upvotes : 0}</div>
+          <div><strong>Assigned Department:</strong> ${escapeHtml(issue.department_name || 'Unassigned')} ${deptStatusBadge}</div>
+          <div><strong>Upvotes:</strong> ${issue.votes ? issue.votes.upvotes : (issue.upvote_count || 0)}</div>
         </div>
+
 
         <!-- Render captured files -->
         ${mediaHTML ? `<div class="media-gallery" style="margin-top: 12px; gap: 8px;">${mediaHTML}</div>` : ''}
@@ -550,9 +567,13 @@ function openRejectModal(issueId) {
   // Populate primary issue options for duplicate selection
   const primarySelect = document.getElementById('primary-issue-select');
   const validPrimaryIssues = (allWardIssues || []).filter(i => i.id !== issueId && i.status !== 'rejected');
-  primarySelect.innerHTML = validPrimaryIssues.map(i => `
-    <option value="${i.id}">[${i.status.toUpperCase()}] ${escapeHtml(i.title)} (👍 ${i.votes ? i.votes.upvotes : 0})</option>
-  `).join('');
+  if (validPrimaryIssues.length > 0) {
+    primarySelect.innerHTML = validPrimaryIssues.map(i => `
+      <option value="${i.id}">[${i.status.toUpperCase()}] ${escapeHtml(i.title)} (👍 ${i.votes ? i.votes.upvotes : (i.upvote_count || 0)})</option>
+    `).join('');
+  } else {
+    primarySelect.innerHTML = `<option value="">No other active issues available</option>`;
+  }
 
   document.getElementById('reject-modal').style.display = 'flex';
 }
@@ -580,7 +601,7 @@ async function submitRejection(event) {
   const primaryIssueId = document.getElementById('primary-issue-select').value;
 
   if (!reason || !evidenceFile) {
-    showAlert('Please fill in all fields.', true);
+    showAlert('Please fill in all required fields (reason and evidence file).', true);
     return;
   }
 
@@ -644,9 +665,11 @@ window.addEventListener('load', initializeWard);
 window.addEventListener('languageChanged', loadWardIssues);
 window.auth_tabs = { switchTab }; // export tab switching globally
 window.switchTab = switchTab;
+window.redirectDept = redirectDept;
 window.openRejectModal = openRejectModal;
 window.closeRejectModal = closeRejectModal;
 window.submitRejection = submitRejection;
 window.toggleDuplicateSelect = toggleDuplicateSelect;
 window.toggleMap = toggleMap;
+
 

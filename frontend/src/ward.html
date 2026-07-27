@@ -60,11 +60,13 @@
             <div>
               <h2 data-i18n="ward_member_title">Assigned Ward Complaints</h2>
               <p id="ward-subtitle" style="font-size: 0.9rem; color: var(--text-secondary);">Review local area submissions, set resolution priority, and map departments</p>
+            </div>
             <div style="display: flex; gap: 8px;">
               <button onclick="toggleMap()" class="btn btn-secondary" style="padding: 8px 16px;">🗺️ Toggle Map</button>
               <button onclick="loadWardIssues()" class="btn btn-secondary" style="padding: 8px 16px;" data-i18n="refresh">Refresh</button>
             </div>
           </div>
+
 
           <!-- Interactive Folium OpenStreetMap -->
           <div id="issue-map-container" style="height: 420px; width: 100%; border-radius: 12px; margin-bottom: 24px; display: none; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm);">

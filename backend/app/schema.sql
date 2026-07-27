@@ -116,7 +116,9 @@ ALTER TABLE issues
     ADD COLUMN IF NOT EXISTS completion_ai_prediction VARCHAR(20),
     ADD COLUMN IF NOT EXISTS completion_ai_confidence DOUBLE PRECISION,
     ADD COLUMN IF NOT EXISTS rejection_ai_prediction VARCHAR(20),
-    ADD COLUMN IF NOT EXISTS rejection_ai_confidence DOUBLE PRECISION;
+    ADD COLUMN IF NOT EXISTS rejection_ai_confidence DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS is_redirected BOOLEAN DEFAULT FALSE;
+
 
 -- ---------------------------------------------------------------------------
 -- 6. Status change audit trail

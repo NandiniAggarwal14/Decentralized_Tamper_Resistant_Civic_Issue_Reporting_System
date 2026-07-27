@@ -170,7 +170,8 @@ async def get_ward_issues(current_user: UserResponse = Depends(RoleChecker(["war
                            i.latitude, i.longitude, i.reporter_name, i.contact,
                            i.image_url, i.status, i.created_at, i.hash,
                            i.priority, i.ward_id, w.name as ward_name,
-                           i.department_id, d.name as department_name,
+                           i.department_id, d.name as department_name, i.is_redirected,
+
                            i.ipfs_cid, i.media_urls, i.completion_proof_ipfs_cid, i.completion_hash,
                            i.completion_proof_url,
                            i.rejection_reason, i.rejection_proof_url, i.rejection_proof_ipfs_cid,
@@ -229,9 +230,10 @@ async def redirect_issue(
                     raise HTTPException(status_code=404, detail="Department not found")
 
                 cursor.execute(
-                    "UPDATE issues SET department_id = %s WHERE id = %s",
+                    "UPDATE issues SET department_id = %s, is_redirected = TRUE WHERE id = %s",
                     (req.department_id, issue_id)
                 )
+
 
                 # Get department name
                 cursor.execute("SELECT name FROM departments WHERE id = %s", (req.department_id,))

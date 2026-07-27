@@ -233,6 +233,8 @@ def _serialize_issue(row: dict) -> dict:
         "ward_name": row.get("ward_name"),
         "department_id": row.get("department_id"),
         "department_name": row.get("department_name"),
+        "is_redirected": bool(row.get("is_redirected", False)),
+
         "ipfs_cid": row.get("ipfs_cid"),
         "completion_proof_ipfs_cid": row.get("completion_proof_ipfs_cid"),
         "completion_hash": row.get("completion_hash"),
